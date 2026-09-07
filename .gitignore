@@ -13,3 +13,4 @@ checkpoints/
 web/node_modules/
 web/dist/
 web/.npm-cache/
+web/*.tsbuildinfo
