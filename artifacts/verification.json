@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-09-08T07:23:00+08:00",
+  "environment": {
+    "os": "Windows",
+    "python": "3.13.9",
+    "node": "24.14.0",
+    "uv": "0.11.4"
+  },
+  "backend": {
+    "pytest": { "passed": 14, "failed": 0, "warning": 1 },
+    "ruff_check": "passed",
+    "ruff_format_check": "passed",
+    "mypy_strict": "passed",
+    "demo": "passed"
+  },
+  "frontend": {
+    "vitest": { "files_passed": 1, "tests_passed": 1, "failed": 0 },
+    "typescript_strict": "passed",
+    "vite_production_build": "passed",
+    "bundle_js_gzip_kib": 61.21
+  },
+  "model_calls": {
+    "real_model_used": false,
+    "embedding_used": false,
+    "claim_boundary": "Deterministic offline contract tests only"
+  },
+  "not_yet_verified": [
+    "persistent LangGraph interrupt/resume across process restart",
+    "concurrent multi-process idempotency",
+    "real semantic embedding retrieval quality",
+    "30-case versioned RAG evaluation",
+    "Playwright browser end-to-end flow",
+    "deployed production environment"
+  ]
+}
+
