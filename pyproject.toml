@@ -31,7 +31,7 @@ packages = ["src/commerce_support"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "-q"
+addopts = "-q --basetemp=.pytest-tmp -p no:cacheprovider"
 
 [tool.ruff]
 line-length = 100
@@ -44,4 +44,3 @@ select = ["E", "F", "I", "UP", "B"]
 python_version = "3.12"
 strict = true
 packages = ["commerce_support"]
-
