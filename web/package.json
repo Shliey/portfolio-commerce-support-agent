@@ -7,19 +7,20 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --pretty false",
-    "test": "vitest run"
+    "test": "vitest run src",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "typescript": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "typescript": "latest",
+    "vite": "latest"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "vitest": "latest"
   }
 }
-

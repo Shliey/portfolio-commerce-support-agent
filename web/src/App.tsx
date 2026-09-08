@@ -13,7 +13,10 @@ export default function App() {
     event.preventDefault();
     if (!token) return;
     setBusy(true);
-    try { setEvents(await sendMessage(token, message)); } finally { setBusy(false); }
+    setEvents([]);
+    try {
+      await sendMessage(token, message, item => setEvents(current => [...current, item]));
+    } finally { setBusy(false); }
   }
 
   async function review(id: string, approve: boolean) {
@@ -43,4 +46,3 @@ export default function App() {
     </section>
   </main>;
 }
-

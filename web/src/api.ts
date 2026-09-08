@@ -25,7 +25,11 @@ export async function login(): Promise<string> {
   return (await response.json() as { access_token: string }).access_token;
 }
 
-export async function sendMessage(token: string, message: string): Promise<AgentEvent[]> {
+export async function sendMessage(
+  token: string,
+  message: string,
+  onEvent?: (event: AgentEvent) => void,
+): Promise<AgentEvent[]> {
   const response = await fetch(`${API}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -35,7 +39,33 @@ export async function sendMessage(token: string, message: string): Promise<Agent
     }),
   });
   if (!response.ok) throw new Error("请求失败");
-  return parseSse(await response.text());
+  if (!response.body) return parseSse(await response.text());
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const events: AgentEvent[] = [];
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const frames = buffer.split("\n\n");
+    buffer = frames.pop() ?? "";
+    for (const frame of frames) {
+      const parsed = parseSse(`${frame}\n\n`);
+      for (const event of parsed) {
+        events.push(event);
+        onEvent?.(event);
+      }
+    }
+    if (done) break;
+  }
+  if (buffer.trim()) {
+    for (const event of parseSse(buffer)) {
+      events.push(event);
+      onEvent?.(event);
+    }
+  }
+  return events;
 }
 
 export async function decide(token: string, approvalId: string, approve: boolean): Promise<unknown> {

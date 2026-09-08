@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-08T11:40:00+08:00",
+  "generated_at": "2026-09-08T11:50:00+08:00",
   "environment": {
     "os": "Windows",
     "python": "3.13.9",
@@ -15,6 +15,7 @@
   },
   "frontend": {
     "vitest": { "files_passed": 1, "tests_passed": 1, "failed": 0 },
+    "playwright": { "tests_passed": 1, "failed": 0, "flow": "login-return-approve-ticket" },
     "typescript_strict": "passed",
     "vite_production_build": "passed",
     "bundle_js_gzip_kib": 61.21
@@ -27,7 +28,6 @@
   "not_yet_verified": [
     "real semantic embedding retrieval quality",
     "30-case versioned RAG evaluation",
-    "Playwright browser end-to-end flow",
     "deployed production environment"
   ]
 }
