@@ -141,4 +141,5 @@ Remove-Item Env:CAPTURE_DEMO
 
 - [上游源码深度剖析](docs/upstream-analysis.zh-CN.md)
 - [贡献与证据矩阵](docs/evidence-matrix.zh-CN.md)
+- [OpenSpec 逐项完成审计](docs/openspec-completion-audit.zh-CN.md)
 - [简历与面试材料](docs/resume-interview-kit.zh-CN.md)

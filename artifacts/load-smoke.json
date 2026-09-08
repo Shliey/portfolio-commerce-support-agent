@@ -5,9 +5,9 @@
   "requests": 100,
   "successes": 100,
   "success_rate": 1.0,
-  "latency_ms_p50": 1.727,
-  "latency_ms_p95": 2.194,
-  "latency_ms_max": 3.308,
+  "latency_ms_p50": 1.744,
+  "latency_ms_p95": 2.066,
+  "latency_ms_max": 2.56,
   "threshold_ms_p95": 250.0,
   "threshold_passed": true
 }
