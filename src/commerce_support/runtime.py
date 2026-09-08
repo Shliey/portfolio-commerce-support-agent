@@ -12,7 +12,7 @@ from langgraph.graph import END, START, StateGraph
 from .eligibility import evaluate_return
 from .models import ConversationState, EventType, Role, StreamEvent
 from .observability import ToolExecutor
-from .rag import OfflinePolicyRetriever
+from .rag import OfflinePolicyRetriever, SemanticPolicyRetriever
 from .repository import SQLiteRepository
 from .return_workflow import ReturnWorkflow
 from .session_store import SessionStateStore
@@ -87,9 +87,10 @@ class CommerceRuntime:
         checkpoint_path: Path | str | None = None,
         *,
         audit_sink: Any = None,
+        policy_retriever: SemanticPolicyRetriever | None = None,
     ) -> None:
         self.repository = repository
-        self.policy = OfflinePolicyRetriever()
+        self.policy = policy_retriever or OfflinePolicyRetriever()
         self.graph = build_routing_graph()
         resolved_checkpoint_path = Path(
             checkpoint_path or repository.path.with_name("checkpoints.db")

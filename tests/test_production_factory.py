@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from commerce_support.api import create_app_from_env
+from commerce_support.rag import OfflinePolicyRetriever
 
 
 def test_production_factory_uses_separate_databases_and_serves_web(
@@ -19,6 +20,11 @@ def test_production_factory_uses_separate_databases_and_serves_web(
     monkeypatch.setenv("BUSINESS_DB", str(business))
     monkeypatch.setenv("CHECKPOINT_DB", str(checkpoints))
     monkeypatch.setenv("WEB_DIST", str(web))
+    monkeypatch.setenv("LLM_EMBEDDING_MODEL", "test:semantic-fake")
+    monkeypatch.setattr(
+        "commerce_support.api.production_policy_retriever",
+        lambda _name: OfflinePolicyRetriever(),
+    )
 
     with TestClient(create_app_from_env()) as client:
         assert client.get("/health").json() == {"status": "ok"}
@@ -45,4 +51,15 @@ def test_production_factory_uses_separate_databases_and_serves_web(
 def test_production_factory_requires_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("APP_SECRET", raising=False)
     with pytest.raises(ValueError, match="APP_SECRET is required"):
+        create_app_from_env()
+
+
+def test_production_factory_refuses_missing_semantic_embedding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("APP_SECRET", "production-test-secret")
+    monkeypatch.setenv("BUSINESS_DB", str(tmp_path / "business.db"))
+    monkeypatch.setenv("CHECKPOINT_DB", str(tmp_path / "checkpoints.db"))
+    monkeypatch.delenv("LLM_EMBEDDING_MODEL", raising=False)
+    with pytest.raises(ValueError, match="LLM_EMBEDDING_MODEL"):
         create_app_from_env()

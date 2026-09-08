@@ -11,7 +11,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     APP_ENV=production \
     BUSINESS_DB=/app/data/business.db \
     CHECKPOINT_DB=/app/data/checkpoints.db \
-    WEB_DIST=/app/web-dist
+    WEB_DIST=/app/web-dist \
+    LLM_EMBEDDING_MODEL=fastembed:BAAI/bge-small-en-v1.5
 WORKDIR /app
 RUN pip install --no-cache-dir uv
 COPY pyproject.toml uv.lock README.md ./

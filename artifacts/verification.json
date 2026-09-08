@@ -7,7 +7,7 @@
     "uv": "0.11.4"
   },
   "backend": {
-    "pytest": { "passed": 43, "failed": 0, "warning": 1 },
+    "pytest": { "passed": 44, "failed": 0, "warning": 1 },
     "ruff_check": "passed",
     "ruff_format_check": "passed",
     "mypy_strict": "passed",
@@ -34,6 +34,7 @@
     "health": "passed",
     "same_origin_web": "passed",
     "login": "passed",
+    "semantic_policy_runtime_smoke": "passed",
     "separate_business_and_checkpoint_paths": "passed",
     "dockerfile_present": true,
     "docker_image_built": false,

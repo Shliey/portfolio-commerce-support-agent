@@ -76,6 +76,7 @@ $env:APP_SECRET = "replace-with-a-long-random-secret"
 $env:BUSINESS_DB = ".\data\business.db"
 $env:CHECKPOINT_DB = ".\data\checkpoints.db"
 $env:WEB_DIST = ".\web\dist"
+$env:LLM_EMBEDDING_MODEL = "fastembed:BAAI/bge-small-en-v1.5"
 uv run uvicorn commerce_support.api:create_app_from_env --factory --host 0.0.0.0 --port 8000
 ```
 
