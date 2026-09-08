@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 
 from commerce_support.models import ConversationState, RequestScope, Role
 from commerce_support.repository import SQLiteRepository
-from commerce_support.runtime import ROLE_TOOLS, CommerceRuntime, route_message
+from commerce_support.runtime import ROLE_TOOLS, CommerceRuntime, route_from_current, route_message
 
 
 def test_roles_have_explicit_tool_allowlists() -> None:
@@ -17,6 +17,8 @@ def test_deterministic_routing() -> None:
     assert route_message("return order-1001") == Role.RETURN
     assert route_message("what is the warranty policy?") == Role.POLICY
     assert route_message("show my orders") == Role.ORDER
+    assert route_from_current("what about yesterday?", Role.ORDER) == Role.ORDER
+    assert route_from_current("return this", Role.ORDER) == Role.RETURN
 
 
 def test_return_stream_has_correlated_monotonic_events(repository: SQLiteRepository) -> None:
@@ -67,3 +69,31 @@ def test_chat_sse_and_disconnect_safe_approval(
         f"/approvals/{approval_id}/decide", headers=auth_headers, json={"approve": True}
     )
     assert first.json()["ticket"]["id"] == second.json()["ticket"]["id"]
+
+
+def test_active_agent_persists_across_runtime_restart(repository: SQLiteRepository) -> None:
+    checkpoint_path = repository.path.with_name("checkpoints.db")
+    scope1 = RequestScope(user_id="user-1", thread_id="thread-1", request_id="request-1")
+    first = list(
+        CommerceRuntime(repository, checkpoint_path).stream(
+            ConversationState(scope=scope1, message="show my orders")
+        )
+    )
+    assert first[0].data == {"from": "triage", "to": "order"}
+
+    scope2 = RequestScope(user_id="user-1", thread_id="thread-1", request_id="request-2")
+    second = list(
+        CommerceRuntime(repository, checkpoint_path).stream(
+            ConversationState(scope=scope2, message="what about yesterday?")
+        )
+    )
+    assert all(item.type != "handoff" for item in second)
+    assert second[-1].data["active_agent"] == "order"
+
+
+def test_same_thread_id_is_isolated_between_users(repository: SQLiteRepository) -> None:
+    checkpoint_path = repository.path.with_name("checkpoints.db")
+    runtime = CommerceRuntime(repository, checkpoint_path)
+    runtime.sessions.save("user-1", "shared-thread", Role.RETURN)
+    assert runtime.sessions.load("user-1", "shared-thread") == Role.RETURN
+    assert runtime.sessions.load("attacker", "shared-thread") == Role.TRIAGE

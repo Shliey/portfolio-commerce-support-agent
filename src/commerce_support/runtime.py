@@ -14,6 +14,7 @@ from .models import ConversationState, EventType, Role, StreamEvent
 from .rag import OfflinePolicyRetriever
 from .repository import SQLiteRepository
 from .return_workflow import ReturnWorkflow
+from .session_store import SessionStateStore
 
 ROLE_TOOLS: dict[Role, frozenset[str]] = {
     Role.TRIAGE: frozenset(),
@@ -39,11 +40,17 @@ def route_message(message: str) -> Role:
     return Role.TRIAGE
 
 
+def route_from_current(message: str, current: Role) -> Role:
+    routed = route_message(message)
+    return current if routed == Role.TRIAGE and current != Role.TRIAGE else routed
+
+
 def build_routing_graph() -> Any:
     graph: StateGraph[GraphState] = StateGraph(GraphState)
 
     def triage(state: GraphState) -> GraphState:
-        return {**state, "active_agent": route_message(state["message"]).value}
+        current = Role(state.get("active_agent", Role.TRIAGE.value))
+        return {**state, "active_agent": route_from_current(state["message"], current).value}
 
     graph.add_node("triage", triage)
     graph.add_edge(START, "triage")
@@ -58,9 +65,11 @@ class CommerceRuntime:
         self.repository = repository
         self.policy = OfflinePolicyRetriever()
         self.graph = build_routing_graph()
-        self.returns = ReturnWorkflow(
-            repository, checkpoint_path or repository.path.with_name("checkpoints.db")
+        resolved_checkpoint_path = Path(
+            checkpoint_path or repository.path.with_name("checkpoints.db")
         )
+        self.sessions = SessionStateStore(resolved_checkpoint_path)
+        self.returns = ReturnWorkflow(repository, resolved_checkpoint_path)
 
     def stream(self, state: ConversationState) -> Iterable[StreamEvent]:
         run_id = f"run-{uuid.uuid4().hex}"
@@ -78,12 +87,12 @@ class CommerceRuntime:
                 data=data,
             )
 
-        routed = self.graph.invoke(
-            {"message": state.message, "active_agent": state.active_agent.value}
-        )
+        previous_role = self.sessions.load(state.scope.user_id, state.scope.thread_id)
+        routed = self.graph.invoke({"message": state.message, "active_agent": previous_role.value})
         role = Role(routed["active_agent"])
-        if role != state.active_agent:
-            yield event("handoff", {"from": state.active_agent.value, "to": role.value})
+        self.sessions.save(state.scope.user_id, state.scope.thread_id, role)
+        if role != previous_role:
+            yield event("handoff", {"from": previous_role.value, "to": role.value})
         if role == Role.TRIAGE:
             yield event("message_update", {"text": "请说明是订单、退货还是政策问题。"})
         elif role == Role.ORDER:
