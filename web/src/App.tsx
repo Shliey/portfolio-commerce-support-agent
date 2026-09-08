@@ -2,6 +2,36 @@ import { FormEvent, useEffect, useState } from "react";
 import { AgentEvent, Order, decide, listOrders, login, sendMessage } from "./api";
 import "./styles.css";
 
+type CitationView = { source: string; title: string; section: string };
+
+function citationsFrom(data: Record<string, unknown>): CitationView[] {
+  if (!Array.isArray(data.citations)) return [];
+  return data.citations.flatMap(value => {
+    if (typeof value !== "object" || value === null) return [];
+    const citation = value as Record<string, unknown>;
+    if (![citation.source, citation.title, citation.section].every(item => typeof item === "string")) {
+      return [];
+    }
+    return [{
+      source: String(citation.source), title: String(citation.title), section: String(citation.section),
+    }];
+  });
+}
+
+function EventDetails({ item }: { item: AgentEvent }) {
+  const citations = citationsFrom(item.data);
+  return <>
+    {item.type === "handoff" && <p>角色切换：{String(item.data.from)} → {String(item.data.to)}</p>}
+    {(item.type === "tool_start" || item.type === "tool_end") &&
+      <p>工具状态：{String(item.data.tool)} · {item.type === "tool_start" ? "执行中" : "已完成"}</p>}
+    {citations.length > 0 && <div aria-label="政策引用"><strong>政策来源</strong><ul>
+      {citations.map(citation => <li key={`${citation.source}-${citation.section}`}>
+        {citation.title} · {citation.section} <small>{citation.source}</small>
+      </li>)}
+    </ul></div>}
+  </>;
+}
+
 export default function App() {
   const [token, setToken] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
@@ -59,6 +89,7 @@ export default function App() {
     <section className="timeline">
       {events.map(item => <article key={`${item.run_id}-${item.seq}`}>
         <small>#{item.seq} · {item.type}</small>
+        <EventDetails item={item} />
         <pre>{JSON.stringify(item.data, null, 2)}</pre>
         {item.type === "approval_required" && <div className="actions">
           <button onClick={() => void review(String(item.data.id), true)}>批准</button>

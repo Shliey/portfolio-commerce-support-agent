@@ -24,7 +24,7 @@
 - 分离 `user_id`、`thread_id`、`request_id`，在 SQLite 使用 `UNIQUE(request_id)` 保证业务幂等，
   通过 16 线程竞争、Windows 4 进程/8 次竞争、参数冲突和 crash-after-write 恢复验证工单只写一次。
 - 构建 FastAPI 与严格模式 TypeScript 演示端，展示角色切换、工具执行、政策引用和审批状态；
-  71 个后端测试、6 个前端单元/组件测试与 Playwright 浏览器闭环均通过，默认 CI 不产生模型调用费用。
+  71 个后端测试、7 个前端单元/组件测试与 Playwright 浏览器闭环均通过，默认 CI 不产生模型调用费用。
 - 建立 30 条版本化 Policy RAG 集合；离线 Hash stub 与本地 BGE semantic embedding 的 Hit@1、
   Hit@3、MRR、引用合法率和拒答召回均为 1.0，并显式标记未调用生成式 LLM。
 

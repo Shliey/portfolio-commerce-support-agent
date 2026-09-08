@@ -124,4 +124,34 @@ describe("App", () => {
     fireEvent.click(await screen.findByRole("button", { name: "批准" }));
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("审批失败"));
   });
+
+  it("renders role, tool, and policy citation metadata as explicit views", async () => {
+    const event = (type: string, seq: number, data: Record<string, unknown>) => ({
+      type, run_id: "run-policy", thread_id: "thread-policy", user_id: "user-1", seq, data,
+    });
+    const events = [
+      event("handoff", 1, { from: "triage", to: "policy" }),
+      event("tool_start", 2, { tool: "search_policy" }),
+      event("tool_end", 3, { tool: "search_policy" }),
+      event("message_update", 4, { citations: [{
+        source: "returns.md", title: "退货政策", section: "七天退货",
+      }] }),
+    ];
+    const sse = events.map(item => `event: ${item.type}\ndata: ${JSON.stringify(item)}\n\n`).join("");
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/login")) return jsonResponse({ access_token: "token" });
+      if (url.endsWith("/orders")) return jsonResponse([]);
+      if (url.endsWith("/chat")) return new Response(sse);
+      return jsonResponse({}, 404);
+    }));
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "发送请求" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "发送请求" }));
+    expect(await screen.findByText("角色切换：triage → policy")).toBeVisible();
+    expect(screen.getByText("工具状态：search_policy · 执行中")).toBeVisible();
+    expect(screen.getByText("工具状态：search_policy · 已完成")).toBeVisible();
+    expect(screen.getByLabelText("政策引用")).toHaveTextContent("退货政策 · 七天退货 returns.md");
+  });
 });
