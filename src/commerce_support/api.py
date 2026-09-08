@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Annotated
@@ -7,9 +8,11 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .auth import AuthenticationError, TokenService
+from .config import Settings
 from .models import ConversationState, RequestScope
 from .repository import IdempotencyConflict, NotFound, SQLiteRepository
 from .runtime import CommerceRuntime
@@ -33,12 +36,16 @@ class DecisionRequest(BaseModel):
 
 
 def create_app(
-    db_path: Path | str = "data/business.db", secret: str = "development-secret-change-me"
+    db_path: Path | str = "data/business.db",
+    secret: str = "development-secret-change-me",
+    *,
+    checkpoint_path: Path | str | None = None,
+    static_dir: Path | str | None = None,
 ) -> FastAPI:
     repository = SQLiteRepository(db_path)
     repository.seed()
     tokens = TokenService(secret)
-    runtime = CommerceRuntime(repository)
+    runtime = CommerceRuntime(repository, checkpoint_path)
     app = FastAPI(title="Recoverable Commerce Support Agent", version="0.1.0")
     app.add_middleware(
         CORSMiddleware,
@@ -124,7 +131,23 @@ def create_app(
 
     app.state.repository = repository
     app.state.runtime = runtime
+    if static_dir is not None:
+        resolved_static_dir = Path(static_dir)
+        if not resolved_static_dir.is_dir():
+            raise ValueError(f"static directory does not exist: {resolved_static_dir}")
+        app.mount("/", StaticFiles(directory=resolved_static_dir, html=True), name="web")
     return app
+
+
+def create_app_from_env() -> FastAPI:
+    settings = Settings.from_env()
+    static_dir = os.getenv("WEB_DIST")
+    return create_app(
+        settings.business_db,
+        settings.app_secret,
+        checkpoint_path=settings.checkpoint_db,
+        static_dir=static_dir,
+    )
 
 
 app = create_app()

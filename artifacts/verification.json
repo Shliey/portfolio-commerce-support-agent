@@ -7,7 +7,7 @@
     "uv": "0.11.4"
   },
   "backend": {
-    "pytest": { "passed": 29, "failed": 0, "warning": 1 },
+    "pytest": { "passed": 31, "failed": 0, "warning": 1 },
     "ruff_check": "passed",
     "ruff_format_check": "passed",
     "mypy_strict": "passed",
@@ -27,6 +27,16 @@
     "sample_size": 8,
     "gate_verified": true,
     "claim_boundary": "Runner and cost gate verified; no LLM API key was available, so no live metrics exist"
+  },
+  "deployment": {
+    "production_factory_process_smoke": "passed",
+    "health": "passed",
+    "same_origin_web": "passed",
+    "login": "passed",
+    "separate_business_and_checkpoint_paths": "passed",
+    "dockerfile_present": true,
+    "docker_image_built": false,
+    "claim_boundary": "Docker CLI unavailable; local Uvicorn production-factory smoke is not a container deployment"
   },
   "rag_eval": {
     "suite": "v1",
@@ -54,6 +64,6 @@
   },
   "not_yet_verified": [
     "live LLM routing evaluation and its latency/token metrics",
-    "deployed production environment"
+    "Docker image build/run and remote production environment"
   ]
 }

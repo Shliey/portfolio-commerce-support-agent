@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+.uv-cache
+.model-cache
+.pytest-tmp
+artifacts
+data
+docs
+evals
+tests
+web/node_modules
+web/dist
+web/playwright-report
+web/test-results
+*.db*

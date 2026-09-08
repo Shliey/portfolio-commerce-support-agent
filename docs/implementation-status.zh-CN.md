@@ -24,11 +24,14 @@
   Hit@1、Hit@3、MRR、引用合法率和拒答召回均为 1.0，且明确标记 `real_model_used=false`。
 - 真实 LLM 路由评测 runner 固定 8 条版本化样本并记录 prompt/model、成功率、P50/P95 延迟和 token；
   默认 CI 禁止调用，只有同时显式设置 `RUN_REAL_MODEL_EVAL=1` 和 API key 才会执行。
-- 后端 29 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
+- 生产应用工厂从环境读取 secret、业务库、checkpoint 库和前端产物路径；同源静态前端、健康检查、
+  登录和双数据库已通过真实 Uvicorn 进程级 smoke test。
+- 多阶段 Dockerfile、Compose 持久卷与容器健康检查已实现；当前机器没有 Docker CLI，镜像尚未实际构建。
+- 后端 31 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
 
 具体数字见 `artifacts/verification.json`。
 
 ## 下一阶段，不得提前写入简历
 
 - 当前环境没有 LLM API key，因此尚未运行真实 LLM，也没有可声明的真实延迟/token 指标。
-- 尚未完成容器化和生产启动验收。
+- Docker 镜像尚未在装有 Docker 的环境执行构建/运行验收；本机生产进程验收不能替代该结果。

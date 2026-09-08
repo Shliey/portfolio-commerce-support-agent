@@ -13,7 +13,7 @@ export function parseSse(text: string): AgentEvent[] {
     .map(line => JSON.parse(line.slice(6)) as AgentEvent);
 }
 
-const API = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
+const API = import.meta.env.VITE_API_BASE ?? "";
 
 export async function login(): Promise<string> {
   const response = await fetch(`${API}/login`, {

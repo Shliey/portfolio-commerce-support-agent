@@ -40,6 +40,22 @@ npm run dev
 
 演示账号：`demo / demo-password`。仅用于本地演示，认证实现不是生产 IAM。
 
+### 生产工厂与容器
+
+生产启动必须提供至少 16 字符的 `APP_SECRET`，并使用环境工厂；前后端以同源方式由
+FastAPI 提供，业务库与 checkpoint 库挂载到独立路径：
+
+```powershell
+$env:APP_SECRET = "replace-with-a-long-random-secret"
+$env:BUSINESS_DB = ".\data\business.db"
+$env:CHECKPOINT_DB = ".\data\checkpoints.db"
+$env:WEB_DIST = ".\web\dist"
+uv run uvicorn commerce_support.api:create_app_from_env --factory --host 0.0.0.0 --port 8000
+```
+
+安装 Docker 的环境可执行 `docker compose up --build`。SQLite 数据保存在命名卷
+`commerce-data`；`/health` 同时作为容器健康检查。不得把本机进程验收写成云端部署。
+
 ## API
 
 | 方法 | 路径 | 作用 |
@@ -71,4 +87,3 @@ npm run dev
 - [上游源码深度剖析](docs/upstream-analysis.zh-CN.md)
 - [贡献与证据矩阵](docs/evidence-matrix.zh-CN.md)
 - [简历与面试材料](docs/resume-interview-kit.zh-CN.md)
-
