@@ -24,8 +24,8 @@
   指数退避，持续失败转为 `model_execution_failed` SSE 错误。无 key 时仍显式走确定性 router。
 - LangGraph `interrupt()` 与 SQLite Checkpointer；使用新 workflow 实例和新数据库连接恢复审批。
 - Checkpointer 显式禁用 pickle fallback，并将 JSON/msgpack 反序列化限制为内置安全类型；外部模块对象被拒绝。
-- 伪造的 `os.system` msgpack constructor 已直接送入 load 路径；serializer 只返回原始参数，未导入执行，
-  文件系统 marker 保持不存在。
+- 伪造的 `os.system` msgpack constructor 已直接送入 load 路径；无构造预扫描只放行工作流恢复必需的
+  `langgraph.types.Interrupt`，其余 extension 在导入前拒绝，文件系统 marker 保持不存在。
 - 所有 Session SQLite 连接在 `finally` 显式关闭；Windows 验证可在运行后立即删除 checkpoint 文件。
 - Business Repository 提供显式 `close()` 与 context-manager 生命周期；关闭后拒绝重新操作，同时验证异常事务完整回滚，
   并在带空格的 Windows 路径反复打开 20 次后可立即重命名删除。

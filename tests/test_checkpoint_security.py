@@ -21,6 +21,6 @@ def test_foreign_constructor_payload_is_not_executed(tmp_path) -> None:
     constructor = ormsgpack.packb(("os", "system", command))
     malicious = ormsgpack.packb(ormsgpack.Ext(0, constructor))
     serializer = strict_checkpoint_serializer()
-    decoded = serializer.loads_typed(("msgpack", malicious))
-    assert decoded == command
+    with pytest.raises(ValueError, match="ext_hook failed"):
+        serializer.loads_typed(("msgpack", malicious))
     assert not marker.exists()

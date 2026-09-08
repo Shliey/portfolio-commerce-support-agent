@@ -5,6 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TypedDict
 
+import ormsgpack
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
@@ -15,8 +16,41 @@ from .models import RequestScope
 from .ports import BusinessRepository
 
 
-def strict_checkpoint_serializer() -> JsonPlusSerializer:
-    return JsonPlusSerializer(
+class StrictCheckpointSerializer(JsonPlusSerializer):
+    """Validate constructor extensions before LangGraph reconstructs checkpoint values."""
+
+    allowed_extensions = frozenset({("langgraph.types", "Interrupt")})
+
+    def loads_typed(self, data: tuple[str, bytes]) -> Any:
+        type_, payload = data
+        if type_ != "msgpack":
+            return super().loads_typed(data)
+
+        def validate_extension(code: int, extension: bytes) -> None:
+            value = ormsgpack.unpackb(
+                extension,
+                ext_hook=validate_extension,
+                option=ormsgpack.OPT_NON_STR_KEYS,
+            )
+            if (
+                not isinstance(value, list | tuple)
+                or len(value) < 2
+                or (value[0], value[1]) not in self.allowed_extensions
+            ):
+                raise ValueError(f"checkpoint_extension_rejected:{code}")
+
+        # First pass performs no imports or constructor calls. Only after every extension
+        # is accepted do we delegate reconstruction to LangGraph's strict serializer.
+        ormsgpack.unpackb(
+            payload,
+            ext_hook=validate_extension,
+            option=ormsgpack.OPT_NON_STR_KEYS,
+        )
+        return super().loads_typed(data)
+
+
+def strict_checkpoint_serializer() -> StrictCheckpointSerializer:
+    return StrictCheckpointSerializer(
         pickle_fallback=False,
         allowed_json_modules=None,
         allowed_msgpack_modules=None,
