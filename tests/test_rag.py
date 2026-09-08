@@ -1,4 +1,16 @@
-from commerce_support.rag import OfflinePolicyRetriever
+from commerce_support.rag import OfflinePolicyRetriever, load_policy_corpus
+
+
+def test_policy_corpus_has_required_topics_and_metadata() -> None:
+    chunks = load_policy_corpus()
+    assert {chunk.topic for chunk in chunks} == {
+        "returns",
+        "electronics_warranty",
+        "logistics_exceptions",
+        "promotion_refunds",
+    }
+    assert all(chunk.source and chunk.title and chunk.section for chunk in chunks)
+    assert all(chunk.position >= 0 for chunk in chunks)
 
 
 def test_answer_citations_are_retrieved_sources() -> None:

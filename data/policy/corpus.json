@@ -1,0 +1,10 @@
+[
+  {"text":"Delivered returnable items may be returned within seven calendar days.","source":"policy/returns.md","title":"Returns Policy","section":"Eligibility","position":0,"topic":"returns"},
+  {"text":"Opened hygiene products and personalized goods are non-returnable.","source":"policy/returns.md","title":"Returns Policy","section":"Exclusions","position":1,"topic":"returns"},
+  {"text":"Electronics include a twelve-month limited warranty for manufacturing defects.","source":"policy/warranty.md","title":"Electronics Warranty","section":"Coverage","position":0,"topic":"electronics_warranty"},
+  {"text":"The electronics warranty excludes accidental damage, misuse, and normal wear.","source":"policy/warranty.md","title":"Electronics Warranty","section":"Exclusions","position":1,"topic":"electronics_warranty"},
+  {"text":"A delayed shipment does not create an automatic cash compensation entitlement.","source":"policy/logistics.md","title":"Logistics Policy","section":"Delays and compensation","position":0,"topic":"logistics_exceptions"},
+  {"text":"Contact support when tracking has not updated for five business days.","source":"policy/logistics.md","title":"Logistics Policy","section":"Stalled tracking","position":1,"topic":"logistics_exceptions"},
+  {"text":"A refund for a returned promotional purchase uses the amount actually paid.","source":"policy/promotions.md","title":"Promotion Refunds","section":"Refund amount","position":0,"topic":"promotion_refunds"},
+  {"text":"Returning one item from a bundle may reduce the refund by the retained bundle discount.","source":"policy/promotions.md","title":"Promotion Refunds","section":"Bundles","position":1,"topic":"promotion_refunds"}
+]

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import os
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 from fastembed import TextEmbedding
@@ -20,6 +22,8 @@ class PolicyChunk:
     source: str
     title: str
     section: str
+    position: int
+    topic: str
 
 
 @dataclass(frozen=True)
@@ -28,56 +32,15 @@ class RetrievedChunk:
     score: float
 
 
-DEFAULT_POLICY = [
-    PolicyChunk(
-        "Delivered returnable items may be returned within seven calendar days.",
-        "policy/returns.md",
-        "Returns Policy",
-        "Eligibility",
-    ),
-    PolicyChunk(
-        "Opened hygiene products and personalized goods are non-returnable.",
-        "policy/returns.md",
-        "Returns Policy",
-        "Exclusions",
-    ),
-    PolicyChunk(
-        "Electronics include a twelve-month limited warranty for manufacturing defects.",
-        "policy/warranty.md",
-        "Electronics Warranty",
-        "Coverage",
-    ),
-    PolicyChunk(
-        "The electronics warranty excludes accidental damage, misuse, and normal wear.",
-        "policy/warranty.md",
-        "Electronics Warranty",
-        "Exclusions",
-    ),
-    PolicyChunk(
-        "A delayed shipment does not create an automatic cash compensation entitlement.",
-        "policy/logistics.md",
-        "Logistics Policy",
-        "Delays",
-    ),
-    PolicyChunk(
-        "Contact support when tracking has not updated for five business days.",
-        "policy/logistics.md",
-        "Logistics Policy",
-        "Stalled tracking",
-    ),
-    PolicyChunk(
-        "A refund for a returned promotional purchase uses the amount actually paid.",
-        "policy/promotions.md",
-        "Promotion Refunds",
-        "Refund amount",
-    ),
-    PolicyChunk(
-        "Returning one item from a bundle may reduce the refund by the retained bundle discount.",
-        "policy/promotions.md",
-        "Promotion Refunds",
-        "Bundles",
-    ),
-]
+def load_policy_corpus(path: Path | str | None = None) -> list[PolicyChunk]:
+    default_path = Path(__file__).resolve().parents[2] / "data" / "policy" / "corpus.json"
+    configured = path if path is not None else os.getenv("POLICY_CORPUS_PATH")
+    resolved = Path(configured) if configured is not None else default_path
+    payload = json.loads(resolved.read_text(encoding="utf-8"))
+    return [PolicyChunk(**item) for item in payload]
+
+
+DEFAULT_POLICY = load_policy_corpus()
 
 
 class EmbeddingProvider(Protocol):

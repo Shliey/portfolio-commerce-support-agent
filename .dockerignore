@@ -5,7 +5,7 @@
 .model-cache
 .pytest-tmp
 artifacts
-data
+data/*.db*
 docs
 evals
 tests
