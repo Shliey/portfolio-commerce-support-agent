@@ -82,10 +82,11 @@ Fencing 把外部文本限制为数据，缓解 prompt injection；provenance �
 它适合单机作品集和低并发演示。多实例部署应把业务库迁到 PostgreSQL，并使用生产级 LangGraph
 checkpointer；接口边界不变，但需要重新验证事务隔离、连接池和并发重试。
 
-### 现在的 RAG 为什么不能称为生产 RAG？
+### 现在的 RAG 验证到了什么边界？
 
-当前是确定性 lexical stub，用来测试引用合法性和无证据拒答。它没有真实 embedding，也没有在
-版本化数据集上运行真实模型，因此只能作为接口与安全合同验证。
+离线 CI 用明确标注的 Hash stub 验证引用与拒答合同；本机另用 FastEmbed/BGE 在同一 30 条版本化
+样本上验证了真实语义检索。两者都没有调用生成式 LLM，所以可以陈述本地 embedding 检索指标，
+但不能把它写成真实 LLM 端到端效果。
 
 ### 如何证明不是套壳？
 
@@ -98,4 +99,3 @@ checkpointer；接口边界不变，但需要重新验证事务隔离、连接�
 - 第 2 周：LangGraph interrupt/checkpoint 持久化、并发和 crash-after-write 故障注入。
 - 第 3 周：真实 semantic embedding、30+ 版本化 RAG eval、前端流式解析与 Playwright E2E。
 - 第 4 周：受控真实模型评测、部署、演示录像、性能报告和简历数字定稿。
-

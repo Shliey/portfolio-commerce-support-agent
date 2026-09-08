@@ -40,6 +40,32 @@ npm run dev
 
 演示账号：`demo / demo-password`。仅用于本地演示，认证实现不是生产 IAM。
 
+## 环境变量
+
+以 `.env.example` 为唯一清单。生产工厂要求 `APP_SECRET`，并分别使用 `BUSINESS_DB` 与
+`CHECKPOINT_DB`；`WEB_DIST` 指向前端构建目录。`LLM_EMBEDDING_MODEL` 选择语义向量模型。
+只有显式设置 `RUN_REAL_MODEL_EVAL=1` 且提供服务端 API key，真实 LLM 评测才会运行。
+
+## 测试与评测
+
+```powershell
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy
+uv run pytest
+uv run python -m evals.run --suite v1
+cd web
+npm test
+npm run typecheck
+npm run build
+npm run e2e
+```
+
+当前已保存的 v1 RAG 报告含 30 条样本：离线 Hash stub 与本机
+`fastembed:BAAI/bge-small-en-v1.5` 语义检索的 Hit@1、Hit@3、MRR、引用合法率和拒答召回均为
+1.0。两者均标记 `real_model_used=false`，不能表述成真实 LLM 效果。精确环境与测试数量见
+`artifacts/verification.json`。
+
 ### 生产工厂与容器
 
 生产启动必须提供至少 16 字符的 `APP_SECRET`，并使用环境工厂；前后端以同源方式由
@@ -84,6 +110,13 @@ uv run uvicorn commerce_support.api:create_app_from_env --factory --host 0.0.0.0
 - 当前 SQLite 适合单机演示，不代表多实例生产环境。
 - 当前 token 是演示级 HMAC token，不替代 OAuth、会话吊销和生产密钥管理。
 - 不连接真实支付、退款或物流系统。
+- 本机未安装 Docker，因此 Dockerfile/Compose 已实现但镜像未实际构建；也没有云端上线证据。
+- 当前环境无 LLM API key，真实路由成功率、延迟与 token 指标不存在。
+
+## 演示界面
+
+Playwright 会在真实 Chromium 中验证订单历史、流式退货请求、审批与唯一成功结果；失败时在
+`web/test-results/` 保存截图和 trace。仓库不把临时测试截图当作生产部署证明。
 
 详细材料：
 
