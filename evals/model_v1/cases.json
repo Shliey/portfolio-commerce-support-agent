@@ -1,0 +1,11 @@
+[
+  {"id":"route-01","message":"Where is order-1001?","expected":"order"},
+  {"id":"route-02","message":"Show my recent purchases and shipment status","expected":"order"},
+  {"id":"route-03","message":"I need to return order-1001","expected":"return"},
+  {"id":"route-04","message":"Please refund the damaged headphones","expected":"return"},
+  {"id":"route-05","message":"How many days do I have to return an item?","expected":"policy"},
+  {"id":"route-06","message":"Does accidental damage qualify for warranty?","expected":"policy"},
+  {"id":"route-07","message":"Tell me a joke","expected":"triage"},
+  {"id":"route-08","message":"Can you write my university essay?","expected":"triage"}
+]
+

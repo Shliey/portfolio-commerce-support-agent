@@ -7,7 +7,7 @@
     "uv": "0.11.4"
   },
   "backend": {
-    "pytest": { "passed": 26, "failed": 0, "warning": 1 },
+    "pytest": { "passed": 29, "failed": 0, "warning": 1 },
     "ruff_check": "passed",
     "ruff_format_check": "passed",
     "mypy_strict": "passed",
@@ -22,8 +22,11 @@
   },
   "model_calls": {
     "real_model_used": false,
-    "embedding_used": false,
-    "claim_boundary": "Deterministic offline contract tests only"
+    "runner_contract_tested": true,
+    "suite": "model-v1",
+    "sample_size": 8,
+    "gate_verified": true,
+    "claim_boundary": "Runner and cost gate verified; no LLM API key was available, so no live metrics exist"
   },
   "rag_eval": {
     "suite": "v1",
@@ -50,6 +53,7 @@
     "failures": 0
   },
   "not_yet_verified": [
+    "live LLM routing evaluation and its latency/token metrics",
     "deployed production environment"
   ]
 }

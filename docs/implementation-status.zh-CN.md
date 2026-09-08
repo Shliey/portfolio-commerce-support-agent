@@ -22,10 +22,13 @@
 - CI 使用明确标记为非语义测试替身的 `HashEmbedding`，运行 30 条版本化检索与拒答评测。
 - 本机使用 `fastembed:BAAI/bge-small-en-v1.5` 完成独立真实语义检索评测；30 条样本的
   Hit@1、Hit@3、MRR、引用合法率和拒答召回均为 1.0，且明确标记 `real_model_used=false`。
-- 后端 26 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
+- 真实 LLM 路由评测 runner 固定 8 条版本化样本并记录 prompt/model、成功率、P50/P95 延迟和 token；
+  默认 CI 禁止调用，只有同时显式设置 `RUN_REAL_MODEL_EVAL=1` 和 API key 才会执行。
+- 后端 29 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
 
 具体数字见 `artifacts/verification.json`。
 
 ## 下一阶段，不得提前写入简历
 
-- 尚未运行真实模型、测量真实延迟/token 或部署，不得写相应结果。
+- 当前环境没有 LLM API key，因此尚未运行真实 LLM，也没有可声明的真实延迟/token 指标。
+- 尚未完成容器化和生产启动验收。
