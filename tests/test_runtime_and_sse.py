@@ -41,6 +41,21 @@ def test_return_stream_has_correlated_monotonic_events(repository: SQLiteReposit
     ]
 
 
+def test_runtime_tool_calls_emit_correlated_audit_entries(repository: SQLiteRepository) -> None:
+    entries: list[dict[str, object]] = []
+    runtime = CommerceRuntime(repository, audit_sink=entries.append)
+    state = ConversationState(
+        scope=RequestScope(user_id="user-1", thread_id="audit-thread", request_id="audit-1"),
+        message="show my orders",
+    )
+    list(runtime.stream(state))
+    assert len(entries) == 1
+    assert entries[0]["name"] == "list_orders"
+    assert entries[0]["user_id"] == "user-1"
+    assert entries[0]["thread_id"] == "audit-thread"
+    assert str(entries[0]["run_id"]).startswith("run-")
+
+
 def test_chat_sse_and_disconnect_safe_approval(
     client: TestClient, auth_headers: dict[str, str]
 ) -> None:

@@ -11,6 +11,7 @@ from langgraph.graph import END, START, StateGraph
 
 from .eligibility import evaluate_return
 from .models import ConversationState, EventType, Role, StreamEvent
+from .observability import ToolExecutor
 from .rag import OfflinePolicyRetriever
 from .repository import SQLiteRepository
 from .return_workflow import ReturnWorkflow
@@ -60,7 +61,11 @@ def build_routing_graph() -> Any:
 
 class CommerceRuntime:
     def __init__(
-        self, repository: SQLiteRepository, checkpoint_path: Path | str | None = None
+        self,
+        repository: SQLiteRepository,
+        checkpoint_path: Path | str | None = None,
+        *,
+        audit_sink: Any = None,
     ) -> None:
         self.repository = repository
         self.policy = OfflinePolicyRetriever()
@@ -70,10 +75,19 @@ class CommerceRuntime:
         )
         self.sessions = SessionStateStore(resolved_checkpoint_path)
         self.returns = ReturnWorkflow(repository, resolved_checkpoint_path)
+        self.audit_sink = audit_sink
 
     def stream(self, state: ConversationState) -> Iterable[StreamEvent]:
         run_id = f"run-{uuid.uuid4().hex}"
         sequence = 0
+        tools = ToolExecutor(
+            context={
+                "run_id": run_id,
+                "user_id": state.scope.user_id,
+                "thread_id": state.scope.thread_id,
+            },
+            sink=self.audit_sink,
+        )
 
         def event(kind: EventType, data: dict[str, Any]) -> StreamEvent:
             nonlocal sequence
@@ -96,35 +110,51 @@ class CommerceRuntime:
         if role == Role.TRIAGE:
             yield event("message_update", {"text": "请说明是订单、退货还是政策问题。"})
         elif role == Role.ORDER:
-            yield from self._order(state, event)
+            yield from self._order(state, event, tools)
         elif role == Role.RETURN:
-            yield from self._return(state, event)
+            yield from self._return(state, event, tools)
         else:
-            yield from self._policy(state, event)
+            yield from self._policy(state, event, tools)
         yield event("completed", {"active_agent": role.value})
 
-    def _order(self, state: ConversationState, event: Any) -> Iterable[StreamEvent]:
+    def _order(
+        self, state: ConversationState, event: Any, tools: ToolExecutor
+    ) -> Iterable[StreamEvent]:
         yield event("tool_start", {"tool": "list_orders"})
-        orders = self.repository.list_orders(state.scope.user_id)
+        orders = tools.call(
+            "list_orders",
+            lambda: self.repository.list_orders(state.scope.user_id),
+            {"user_id": state.scope.user_id},
+        )
         yield event("tool_end", {"tool": "list_orders", "count": len(orders)})
         yield event(
             "message_update", {"orders": [order.model_dump(mode="json") for order in orders]}
         )
 
-    def _return(self, state: ConversationState, event: Any) -> Iterable[StreamEvent]:
+    def _return(
+        self, state: ConversationState, event: Any, tools: ToolExecutor
+    ) -> Iterable[StreamEvent]:
         order_id = state.order_id or self._extract_order_id(state.message)
         if not order_id:
             yield event("message_update", {"text": "请提供订单号。"})
             return
         reason = state.reason or state.message
         yield event("tool_start", {"tool": "get_order"})
-        order = self.repository.get_order(state.scope.user_id, order_id)
+        order = tools.call(
+            "get_order",
+            lambda: self.repository.get_order(state.scope.user_id, order_id),
+            {"user_id": state.scope.user_id, "order_id": order_id},
+        )
         yield event("tool_end", {"tool": "get_order", "order_id": order_id})
         draft = evaluate_return(order, reason)
         if not draft.eligible:
             yield event("message_update", {"eligible": False, "reasons": draft.reasons})
             return
-        self.returns.start(state.scope, order_id, reason)
+        tools.call(
+            "create_approval",
+            lambda: self.returns.start(state.scope, order_id, reason),
+            {"user_id": state.scope.user_id, "order_id": order_id, "reason": reason},
+        )
         approval = self.repository.get_approval_by_request(
             state.scope.user_id, state.scope.request_id
         )
@@ -134,9 +164,13 @@ class CommerceRuntime:
         approval = self.repository.get_approval(user_id, approval_id)
         return self.returns.resume(approval.scope, approve)
 
-    def _policy(self, state: ConversationState, event: Any) -> Iterable[StreamEvent]:
+    def _policy(
+        self, state: ConversationState, event: Any, tools: ToolExecutor
+    ) -> Iterable[StreamEvent]:
         yield event("tool_start", {"tool": "search_policy"})
-        answer = self.policy.answer(state.message)
+        answer = tools.call(
+            "search_policy", lambda: self.policy.answer(state.message), {"question": state.message}
+        )
         yield event("tool_end", {"tool": "search_policy", "citations": len(answer.citations)})
         yield event("message_update", answer.model_dump(mode="json"))
 

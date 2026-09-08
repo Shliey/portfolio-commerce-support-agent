@@ -113,6 +113,8 @@ def create_app(
                 yield 'event: error\ndata: {"code":"order_not_found"}\n\n'
             except IdempotencyConflict:
                 yield 'event: error\ndata: {"code":"idempotency_conflict"}\n\n'
+            except Exception:
+                yield 'event: error\ndata: {"code":"internal_error"}\n\n'
 
         return StreamingResponse(safe_stream(), media_type="text/event-stream")
 
