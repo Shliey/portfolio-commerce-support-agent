@@ -6,7 +6,11 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from commerce_support.rag import OfflinePolicyRetriever
+from commerce_support.rag import (
+    OfflinePolicyRetriever,
+    SemanticPolicyRetriever,
+    production_policy_retriever,
+)
 
 
 @dataclass(frozen=True)
@@ -24,8 +28,14 @@ class EvalReport:
     failures: list[dict[str, Any]]
 
 
-def evaluate(cases: list[dict[str, Any]]) -> EvalReport:
-    retriever = OfflinePolicyRetriever()
+def evaluate(
+    cases: list[dict[str, Any]],
+    retriever: SemanticPolicyRetriever | None = None,
+    *,
+    environment: str = "offline-ci",
+    embedding: str = "HashEmbedding test stub (non-semantic)",
+) -> EvalReport:
+    retriever = retriever or OfflinePolicyRetriever()
     hits1 = 0
     hits3 = 0
     reciprocal_rank = 0.0
@@ -62,8 +72,8 @@ def evaluate(cases: list[dict[str, Any]]) -> EvalReport:
     return EvalReport(
         suite_version="v1",
         sample_size=len(cases),
-        environment="offline-ci",
-        embedding="HashEmbedding test stub (non-semantic)",
+        environment=environment,
+        embedding=embedding,
         real_model_used=False,
         hit_at_1=hits1 / answerable,
         hit_at_3=hits3 / answerable,
@@ -78,10 +88,22 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--suite", default="v1", choices=["v1"])
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--embedding", choices=["hash", "fastembed"], default="hash")
     args = parser.parse_args()
     cases_path = Path(__file__).parent / args.suite / "cases.json"
     cases = json.loads(cases_path.read_text(encoding="utf-8"))
-    rendered = json.dumps(asdict(evaluate(cases)), ensure_ascii=False, indent=2)
+    if args.embedding == "fastembed":
+        model = "BAAI/bge-small-en-v1.5"
+        retriever = production_policy_retriever(f"fastembed:{model}")
+        report = evaluate(
+            cases,
+            retriever,
+            environment="local-semantic",
+            embedding=f"fastembed:{model}",
+        )
+    else:
+        report = evaluate(cases)
+    rendered = json.dumps(asdict(report), ensure_ascii=False, indent=2)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(rendered + "\n", encoding="utf-8")

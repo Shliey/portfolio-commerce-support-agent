@@ -5,6 +5,7 @@ description = "A recoverable, approval-gated commerce support multi-agent built 
 requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.115",
+  "fastembed>=0.7",
   "langchain>=1.0",
   "langgraph>=1.0",
   "langgraph-checkpoint-sqlite>=3.0",

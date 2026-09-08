@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import math
+import os
 import re
 from dataclasses import dataclass
 from typing import Protocol
 
+from fastembed import TextEmbedding
 from langchain.embeddings import init_embeddings
 from langchain_core.embeddings import Embeddings
 
@@ -126,6 +128,24 @@ class HashEmbedding:
         return self._embed(text)
 
 
+class FastEmbedProvider:
+    """Local production-grade semantic embeddings without browser or API credentials."""
+
+    def __init__(self, model_name: str) -> None:
+        self.model_name = model_name
+        self._model = TextEmbedding(
+            model_name=model_name,
+            cache_dir=os.getenv("FASTEMBED_CACHE_DIR", ".model-cache"),
+        )
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [[float(value) for value in vector] for vector in self._model.embed(texts)]
+
+    def embed_query(self, text: str) -> list[float]:
+        vector = next(iter(self._model.query_embed(text)))
+        return [float(value) for value in vector]
+
+
 def _cosine(left: list[float], right: list[float]) -> float:
     return sum(a * b for a, b in zip(left, right, strict=True))
 
@@ -182,5 +202,12 @@ def production_policy_retriever(
     """Create the production path; provider packages and credentials must be configured."""
     if not embedding_model.strip():
         raise ValueError("LLM_EMBEDDING_MODEL is required for semantic RAG")
+    if embedding_model.startswith("fastembed:"):
+        model_name = embedding_model.removeprefix("fastembed:")
+        if not model_name:
+            raise ValueError("fastembed model name is required")
+        # Calibrated on the versioned v1 suite: answerable minimum 0.7200,
+        # unanswerable maximum 0.5886. Keep margin on both sides.
+        return SemanticPolicyRetriever(FastEmbedProvider(model_name), chunks, minimum_score=0.65)
     embeddings: Embeddings = init_embeddings(embedding_model)
     return SemanticPolicyRetriever(embeddings, chunks)
