@@ -41,6 +41,9 @@ def test_cross_user_scope_cannot_find_pending_approval(
     ReturnWorkflow(repository, tmp_path / "checkpoints.db").start(scope, "order-1001", "damaged")
     with pytest.raises(NotFound):
         repository.get_approval_by_request("attacker", "request-1")
+    attacker_scope = RequestScope(user_id="attacker", thread_id="thread-1", request_id="request-1")
+    with pytest.raises(NotFound):
+        ReturnWorkflow(repository, tmp_path / "checkpoints.db").resume(attacker_scope, True)
 
 
 def test_resume_replay_returns_same_ticket(repository: SQLiteRepository, tmp_path: Path) -> None:
@@ -50,6 +53,18 @@ def test_resume_replay_returns_same_ticket(repository: SQLiteRepository, tmp_pat
     first = workflow.resume(scope, True)
     second = workflow.resume(scope, True)
     assert first["ticket"]["id"] == second["ticket"]["id"]
+
+
+def test_rejection_is_terminal_and_creates_no_ticket(
+    repository: SQLiteRepository, tmp_path: Path
+) -> None:
+    workflow = ReturnWorkflow(repository, tmp_path / "checkpoints.db")
+    scope = RequestScope(user_id="user-1", thread_id="reject-thread", request_id="reject-1")
+    workflow.start(scope, "order-1001", "changed mind")
+    result = workflow.resume(scope, False)
+    assert result["status"] == "rejected"
+    assert result["ticket"] is None
+    assert repository.count_tickets("reject-1") == 0
 
 
 def test_business_and_checkpoint_schemas_are_separate(

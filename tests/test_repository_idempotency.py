@@ -1,3 +1,5 @@
+import sqlite3
+
 import pytest
 
 from commerce_support.eligibility import evaluate_return
@@ -31,3 +33,14 @@ def test_approval_retry_writes_exactly_one_ticket(repository: SQLiteRepository) 
     second = repository.decide_approval("user-1", approval.id, True)
     assert first is not None and second is not None
     assert first.id == second.id
+
+
+def test_database_rejects_duplicate_ticket_request_id(repository: SQLiteRepository) -> None:
+    values = ("ticket-direct-1", "direct-request", "user-1", "order-1001", "reason", "now")
+    with repository.connection() as connection:
+        connection.execute("INSERT INTO tickets VALUES (?, ?, ?, ?, ?, ?)", values)
+    duplicate = ("ticket-direct-2", *values[1:])
+    with pytest.raises(sqlite3.IntegrityError, match="UNIQUE"):
+        with repository.connection() as connection:
+            connection.execute("INSERT INTO tickets VALUES (?, ?, ?, ?, ?, ?)", duplicate)
+    assert repository.count_tickets("direct-request") == 1

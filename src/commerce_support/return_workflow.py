@@ -103,6 +103,8 @@ class ReturnWorkflow:
         return self._invoke(scope, initial)
 
     def resume(self, scope: RequestScope, approve: bool) -> dict[str, Any]:
+        # Re-check ownership here; callers cannot rely on API middleware alone.
+        self.repository.get_approval_by_request(scope.user_id, scope.request_id)
         return self._invoke(scope, Command(resume={"approve": approve}))
 
     def _invoke(
