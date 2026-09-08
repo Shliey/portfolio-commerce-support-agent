@@ -50,11 +50,31 @@ def test_expired_token_is_rejected() -> None:
 def test_missing_and_foreign_orders_share_external_error(
     client: TestClient, auth_headers: dict[str, str]
 ) -> None:
-    response = client.get("/orders/unknown", headers=auth_headers)
-    assert response.status_code == 404
-    assert response.json()["detail"]["code"] == "order_not_found"
-    logistics = client.get("/orders/unknown/logistics", headers=auth_headers)
-    assert (logistics.status_code, logistics.json()) == (response.status_code, response.json())
+    repository = client.app.state.repository
+    with repository.connection() as connection:
+        connection.execute(
+            "INSERT INTO users VALUES (?, ?, ?)",
+            ("user-2", "other", "irrelevant-hash"),
+        )
+        connection.execute(
+            "INSERT INTO orders VALUES (?, ?, ?, ?, ?)",
+            ("order-foreign", "user-2", "delivered", None, "[]"),
+        )
+    missing = client.get("/orders/unknown", headers=auth_headers)
+    foreign = client.get("/orders/order-foreign", headers=auth_headers)
+    assert (missing.status_code, missing.json()) == (foreign.status_code, foreign.json())
+    assert missing.status_code == 404
+    assert missing.json()["detail"]["code"] == "order_not_found"
+    missing_logistics = client.get("/orders/unknown/logistics", headers=auth_headers)
+    foreign_logistics = client.get("/orders/order-foreign/logistics", headers=auth_headers)
+    assert (missing_logistics.status_code, missing_logistics.json()) == (
+        foreign_logistics.status_code,
+        foreign_logistics.json(),
+    )
+    assert (missing_logistics.status_code, missing_logistics.json()) == (
+        missing.status_code,
+        missing.json(),
+    )
 
 
 def test_openapi_lists_order_and_logistics_endpoints(client: TestClient) -> None:

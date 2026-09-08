@@ -27,6 +27,8 @@
 - 可独立执行的 migration/seed 入口在干净数据库创建 users、orders、order_items、logistics、
   approvals、tickets、eval_runs，并从结构化物流表读取权威数据。
 - SQL 所有权过滤、确定性 7 天退货规则和人工审批。
+- Missing 与真实 foreign-owned 订单/物流均经同一 `(id,user_id)` SQL 过滤，并验证 HTTP 状态和 JSON
+  响应逐字一致，防止对象存在性枚举。
 - 业务逻辑依赖不含 LangChain 的 `BusinessRepository` Protocol；`OrderTools` 统一提供结构化、
   所有权保护的订单/历史/物流读取，SQLite 只是当前适配器。
 - `approvals.request_id` 与 `tickets.request_id` 数据库唯一约束。
