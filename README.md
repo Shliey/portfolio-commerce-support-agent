@@ -66,6 +66,8 @@ uv run uvicorn commerce_support.api:create_app_from_env --factory --host 0.0.0.0
 | `GET` | `/orders/{id}` | 所有权保护的订单详情 |
 | `GET` | `/orders/{id}/logistics` | 所有权保护的结构化物流信息 |
 | `POST` | `/chat` | 返回结构化 SSE Agent 事件 |
+| `GET` | `/chat/{thread_id}/events` | 用户隔离的持久事件 replay |
+| `GET` | `/threads/{thread_id}` | 当前角色与事件数量快照 |
 | `GET` | `/approvals` | 查询当前用户审批 |
 | `POST` | `/approvals/{id}/decide` | 批准或拒绝并幂等建单 |
 

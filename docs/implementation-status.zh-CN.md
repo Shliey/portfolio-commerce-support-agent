@@ -18,6 +18,7 @@
 - 故障注入覆盖“工单已提交、checkpoint 未更新”窗口；新 workflow 实例恢复后仍只有一张工单。
 - TypeScript strict 的审批时间线 UI。
 - 前端使用 `ReadableStream` 增量解析 SSE，并在每个事件到达时更新执行时间线。
+- SSE 事件按用户、线程、run 和 seq 持久化在 checkpoint 边界；支持用户隔离的线程快照与断线 replay。
 - Playwright 启动隔离的 FastAPI/Vite 进程，验收登录、退货请求、审批和成功提示后自动回收进程。
 - RAG 提供真实 LangChain embedding 工厂；生产配置缺失模型名时拒绝启动，不静默降级到 Hash。
 - CI 使用明确标记为非语义测试替身的 `HashEmbedding`，运行 30 条版本化检索与拒答评测。
@@ -28,7 +29,7 @@
 - 生产应用工厂从环境读取 secret、业务库、checkpoint 库和前端产物路径；同源静态前端、健康检查、
   登录和双数据库已通过真实 Uvicorn 进程级 smoke test。
 - 多阶段 Dockerfile、Compose 持久卷与容器健康检查已实现；当前机器没有 Docker CLI，镜像尚未实际构建。
-- 后端 34 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
+- 后端 35 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
 
 具体数字见 `artifacts/verification.json`。
 

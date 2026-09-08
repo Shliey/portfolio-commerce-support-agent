@@ -2,6 +2,7 @@ import json
 
 from fastapi.testclient import TestClient
 
+from commerce_support.auth import TokenService
 from commerce_support.models import ConversationState, RequestScope, Role
 from commerce_support.repository import SQLiteRepository
 from commerce_support.runtime import ROLE_TOOLS, CommerceRuntime, route_from_current, route_message
@@ -69,6 +70,26 @@ def test_chat_sse_and_disconnect_safe_approval(
         f"/approvals/{approval_id}/decide", headers=auth_headers, json={"approve": True}
     )
     assert first.json()["ticket"]["id"] == second.json()["ticket"]["id"]
+
+    thread = client.get("/threads/t-1", headers=auth_headers)
+    assert thread.json() == {"thread_id": "t-1", "active_agent": "return", "event_count": 5}
+    replay = client.get("/chat/t-1/events", headers=auth_headers)
+    replay_data = [line for line in replay.text.splitlines() if line.startswith("data: ")]
+    assert len(replay_data) == 5
+
+
+def test_thread_replay_is_user_scoped(client: TestClient, auth_headers: dict[str, str]) -> None:
+    client.post(
+        "/chat",
+        headers=auth_headers,
+        json={"thread_id": "private", "request_id": "private-1", "message": "show orders"},
+    )
+    # A valid token for a different identity cannot observe the existing thread.
+    attacker_headers = {
+        "Authorization": f"Bearer {TokenService('test-secret-at-least-sixteen').issue('attacker')}"
+    }
+    assert client.get("/threads/private", headers=attacker_headers).status_code == 404
+    assert client.get("/chat/private/events", headers=attacker_headers).text == ""
 
 
 def test_active_agent_persists_across_runtime_restart(repository: SQLiteRepository) -> None:

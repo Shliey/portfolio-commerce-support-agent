@@ -116,6 +116,28 @@ def create_app(
 
         return StreamingResponse(safe_stream(), media_type="text/event-stream")
 
+    @app.get("/chat/{thread_id}/events")
+    def replay_events(thread_id: str, user_id: str = Depends(current_user)) -> StreamingResponse:
+        events = runtime.sessions.list_events(user_id, thread_id)
+
+        def replay() -> Iterator[str]:
+            for item in events:
+                yield f"event: {item.type}\ndata: {item.model_dump_json()}\n\n"
+
+        return StreamingResponse(replay(), media_type="text/event-stream")
+
+    @app.get("/threads/{thread_id}")
+    def thread(thread_id: str, user_id: str = Depends(current_user)) -> dict[str, object]:
+        active_agent = runtime.sessions.get(user_id, thread_id)
+        if active_agent is None:
+            raise HTTPException(status_code=404, detail={"code": "thread_not_found"})
+        events = runtime.sessions.list_events(user_id, thread_id)
+        return {
+            "thread_id": thread_id,
+            "active_agent": active_agent.value,
+            "event_count": len(events),
+        }
+
     @app.get("/approvals")
     def approvals(user_id: str = Depends(current_user)) -> list[dict[str, object]]:
         return [approval.model_dump(mode="json") for approval in repository.list_approvals(user_id)]

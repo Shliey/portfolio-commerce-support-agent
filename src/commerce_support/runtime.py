@@ -147,4 +147,5 @@ class CommerceRuntime:
 
     def sse(self, state: ConversationState) -> Iterable[str]:
         for item in self.stream(state):
+            self.sessions.append_event(item)
             yield f"event: {item.type}\ndata: {json.dumps(item.model_dump(mode='json'))}\n\n"
