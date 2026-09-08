@@ -13,10 +13,11 @@ from pydantic import BaseModel
 
 from .auth import AuthenticationError, TokenService
 from .config import Settings
+from .dependencies import create_chat_model
 from .models import Approval, ConversationState, Logistics, Order, RequestScope, Ticket
 from .rag import SemanticPolicyRetriever, production_policy_retriever
 from .repository import IdempotencyConflict, NotFound, SQLiteRepository
-from .runtime import CommerceRuntime
+from .runtime import CommerceRuntime, IntentRouter, ModelIntentRouter
 
 
 class LoginRequest(BaseModel):
@@ -85,11 +86,17 @@ def create_app(
     checkpoint_path: Path | str | None = None,
     static_dir: Path | str | None = None,
     policy_retriever: SemanticPolicyRetriever | None = None,
+    intent_router: IntentRouter | None = None,
 ) -> FastAPI:
     repository = SQLiteRepository(db_path)
     repository.seed()
     tokens = TokenService(secret)
-    runtime = CommerceRuntime(repository, checkpoint_path, policy_retriever=policy_retriever)
+    runtime = CommerceRuntime(
+        repository,
+        checkpoint_path,
+        policy_retriever=policy_retriever,
+        intent_router=intent_router,
+    )
     app = FastAPI(title="Recoverable Commerce Support Agent", version="0.1.0")
     app.add_middleware(
         CORSMiddleware,
@@ -244,12 +251,14 @@ def create_app_from_env() -> FastAPI:
     settings = Settings.from_env()
     static_dir = os.getenv("WEB_DIST")
     policy = production_policy_retriever(settings.llm_embedding_model)
+    intent_router = ModelIntentRouter(create_chat_model(settings)) if settings.llm_api_key else None
     return create_app(
         settings.business_db,
         settings.app_secret,
         checkpoint_path=settings.checkpoint_db,
         static_dir=static_dir,
         policy_retriever=policy,
+        intent_router=intent_router,
     )
 
 

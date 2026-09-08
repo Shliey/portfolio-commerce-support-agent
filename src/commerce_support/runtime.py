@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
+import time
 import uuid
 from collections.abc import Iterable
 from pathlib import Path
@@ -60,13 +62,13 @@ class RoutingDecision(BaseModel):
 
 
 class IntentRouter(Protocol):
-    def route(self, message: str, current: Role) -> RoutingDecision: ...
+    def route(self, message: str, current: Role, context: dict[str, str]) -> RoutingDecision: ...
 
 
 class KeywordIntentRouter:
     """Deterministic zero-cost router used by tests and the local demo."""
 
-    def route(self, message: str, current: Role) -> RoutingDecision:
+    def route(self, message: str, current: Role, context: dict[str, str]) -> RoutingDecision:
         role = route_from_current(message, current)
         order_match = re.search(r"order-\d+", message, re.IGNORECASE)
         return RoutingDecision(
@@ -76,11 +78,60 @@ class KeywordIntentRouter:
         )
 
 
+class StructuredOutputModel(Protocol):
+    def with_structured_output(self, schema: type[BaseModel], *, include_raw: bool) -> Any: ...
+
+
+class ModelIntentRouter:
+    """LLM-backed structured router; authorization and side effects remain outside the model."""
+
+    def __init__(self, model: StructuredOutputModel, audit_sink: Any = None) -> None:
+        self.runnable = model.with_structured_output(RoutingDecision, include_raw=True)
+        self.audit_sink = audit_sink or self._default_sink
+
+    @staticmethod
+    def _default_sink(entry: dict[str, Any]) -> None:
+        logging.getLogger("commerce_support.models").info("model_call", extra={"event": entry})
+
+    def route(self, message: str, current: Role, context: dict[str, str]) -> RoutingDecision:
+        started = time.perf_counter()
+        result = self.runnable.invoke(
+            [
+                (
+                    "system",
+                    "Classify one commerce-support turn as triage, order, return, or policy. "
+                    "Extract an explicit order_id and return reason only when present. "
+                    f"The current role is {current.value}.",
+                ),
+                ("human", message),
+            ]
+        )
+        parsed = result.get("parsed") if isinstance(result, dict) and "parsed" in result else result
+        raw = result.get("raw") if isinstance(result, dict) else result
+        decision = RoutingDecision.model_validate(parsed)
+        usage = getattr(raw, "usage_metadata", None) or {}
+        self.audit_sink(
+            {
+                **context,
+                "call_type": "model",
+                "name": "intent_router",
+                "duration_ms": round((time.perf_counter() - started) * 1000, 3),
+                "input_tokens": int(usage.get("input_tokens", 0)),
+                "output_tokens": int(usage.get("output_tokens", 0)),
+                "status": "success",
+            }
+        )
+        return decision
+
+
 class GraphState(TypedDict, total=False):
     active_agent: str
     message: str
     order_id: str | None
     reason: str | None
+    run_id: str
+    user_id: str
+    thread_id: str
 
 
 def route_message(message: str) -> Role:
@@ -105,7 +156,15 @@ def build_routing_graph(router: IntentRouter | None = None) -> Any:
 
     def triage(state: GraphState) -> GraphState:
         current = Role(state.get("active_agent", Role.TRIAGE.value))
-        decision = resolved_router.route(state["message"], current)
+        decision = resolved_router.route(
+            state["message"],
+            current,
+            {
+                "run_id": state["run_id"],
+                "user_id": state["user_id"],
+                "thread_id": state["thread_id"],
+            },
+        )
         return {
             **state,
             "active_agent": decision.role.value,
@@ -172,7 +231,15 @@ class CommerceRuntime:
             )
 
         previous_role = self.sessions.load(state.scope.user_id, state.scope.thread_id)
-        routed = self.graph.invoke({"message": state.message, "active_agent": previous_role.value})
+        routed = self.graph.invoke(
+            {
+                "message": state.message,
+                "active_agent": previous_role.value,
+                "run_id": run_id,
+                "user_id": state.scope.user_id,
+                "thread_id": state.scope.thread_id,
+            }
+        )
         role = Role(routed["active_agent"])
         state = state.model_copy(
             update={

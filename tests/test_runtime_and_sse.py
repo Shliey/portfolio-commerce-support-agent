@@ -1,6 +1,7 @@
 import json
 
 from fastapi.testclient import TestClient
+from pydantic import BaseModel
 
 from commerce_support.auth import TokenService
 from commerce_support.models import ConversationState, RequestScope, Role
@@ -8,6 +9,7 @@ from commerce_support.repository import SQLiteRepository
 from commerce_support.runtime import (
     ROLE_TOOLS,
     CommerceRuntime,
+    ModelIntentRouter,
     RoutingDecision,
     ToolNotAllowed,
     require_allowed_tool,
@@ -51,9 +53,10 @@ def test_deterministic_routing() -> None:
 
 def test_injected_router_uses_structured_decision(repository: SQLiteRepository) -> None:
     class FakeRouter:
-        def route(self, message: str, current: Role) -> RoutingDecision:
+        def route(self, message: str, current: Role, context: dict[str, str]) -> RoutingDecision:
             assert message == "please help"
             assert current == Role.TRIAGE
+            assert context["thread_id"] == "structured"
             return RoutingDecision(role=Role.RETURN, order_id="order-1001", reason="damaged")
 
     events = list(
@@ -67,6 +70,38 @@ def test_injected_router_uses_structured_decision(repository: SQLiteRepository) 
     approval = next(event for event in events if event.type == "approval_required")
     assert approval.data["draft"]["order_id"] == "order-1001"
     assert approval.data["draft"]["reason"] == "damaged"
+
+
+def test_model_router_emits_structured_audit_without_prompt_content() -> None:
+    class FakeRaw:
+        usage_metadata = {"input_tokens": 12, "output_tokens": 3}
+
+    class FakeRunnable:
+        def invoke(self, value: object) -> dict[str, object]:
+            assert value
+            return {"parsed": {"role": "order"}, "raw": FakeRaw()}
+
+    class FakeModel:
+        def with_structured_output(
+            self, schema: type[BaseModel], *, include_raw: bool
+        ) -> FakeRunnable:
+            assert schema is RoutingDecision
+            assert include_raw
+            return FakeRunnable()
+
+    entries: list[dict[str, object]] = []
+    router = ModelIntentRouter(FakeModel(), entries.append)
+    decision = router.route(
+        "show my private order",
+        Role.TRIAGE,
+        {"run_id": "run-1", "user_id": "user-1", "thread_id": "thread-1"},
+    )
+    assert decision.role == Role.ORDER
+    assert entries[0]["call_type"] == "model"
+    assert entries[0]["run_id"] == "run-1"
+    assert entries[0]["input_tokens"] == 12
+    assert entries[0]["output_tokens"] == 3
+    assert "private order" not in str(entries)
 
 
 def test_return_stream_has_correlated_monotonic_events(repository: SQLiteRepository) -> None:
