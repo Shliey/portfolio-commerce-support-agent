@@ -14,7 +14,7 @@
     "demo": "passed"
   },
   "frontend": {
-    "vitest": { "files_passed": 2, "tests_passed": 3, "failed": 0 },
+    "vitest": { "files_passed": 2, "tests_passed": 6, "failed": 0 },
     "playwright": { "tests_passed": 1, "failed": 0, "flow": "login-order-history-return-approve-single-ticket", "windows_process_cleanup": "passed" },
     "typescript_strict": "passed",
     "vite_production_build": "passed",

@@ -56,4 +56,72 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("登录失败"));
     expect(screen.getByRole("button", { name: "发送请求" })).toBeDisabled();
   });
+
+  it("renders the rejected approval result without a ticket", async () => {
+    const approval = {
+      type: "approval_required", run_id: "run-reject", thread_id: "thread-reject",
+      user_id: "user-1", seq: 1, data: { id: "approval-reject" },
+    };
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/login")) return jsonResponse({ access_token: "token" });
+      if (url.endsWith("/orders")) return jsonResponse([]);
+      if (url.endsWith("/chat")) {
+        return new Response(`event: approval_required\ndata: ${JSON.stringify(approval)}\n\n`);
+      }
+      if (url.includes("/approvals/approval-reject/decide")) {
+        return jsonResponse({ status: "rejected", ticket: null });
+      }
+      return jsonResponse({}, 404);
+    }));
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "发送请求" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "发送请求" }));
+    fireEvent.click(await screen.findByRole("button", { name: "拒绝" }));
+    expect(await screen.findByText("已拒绝。", { exact: false })).toBeVisible();
+    expect(screen.queryByText("工单已创建", { exact: false })).not.toBeInTheDocument();
+  });
+
+  it("renders a documented chat error from the fake backend", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/login")) return jsonResponse({ access_token: "token" });
+      if (url.endsWith("/orders")) return jsonResponse([]);
+      if (url.endsWith("/chat")) {
+        return jsonResponse({ detail: { code: "internal_error" } }, 500);
+      }
+      return jsonResponse({}, 404);
+    }));
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "发送请求" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "发送请求" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("请求失败"));
+  });
+
+  it("renders a documented approval conflict from the fake backend", async () => {
+    const approval = {
+      type: "approval_required", run_id: "run-conflict", thread_id: "thread-conflict",
+      user_id: "user-1", seq: 1, data: { id: "approval-conflict" },
+    };
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/login")) return jsonResponse({ access_token: "token" });
+      if (url.endsWith("/orders")) return jsonResponse([]);
+      if (url.endsWith("/chat")) {
+        return new Response(`event: approval_required\ndata: ${JSON.stringify(approval)}\n\n`);
+      }
+      if (url.includes("/approvals/approval-conflict/decide")) {
+        return jsonResponse({ detail: { code: "idempotency_conflict" } }, 409);
+      }
+      return jsonResponse({}, 404);
+    }));
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "发送请求" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "发送请求" }));
+    fireEvent.click(await screen.findByRole("button", { name: "批准" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("审批失败"));
+  });
 });
