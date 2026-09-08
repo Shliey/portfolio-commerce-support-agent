@@ -9,6 +9,15 @@ def test_login_and_owner_can_read_order(client: TestClient, auth_headers: dict[s
     response = client.get("/orders/order-1001", headers=auth_headers)
     assert response.status_code == 200
     assert response.json()["user_id"] == "user-1"
+    logistics = client.get("/orders/order-1001/logistics", headers=auth_headers)
+    assert logistics.status_code == 200
+    assert logistics.json() == {
+        "order_id": "order-1001",
+        "status": "delivered",
+        "carrier": "Demo Express",
+        "tracking_number": "DEMO-1001",
+        "delivered_at": response.json()["delivered_at"],
+    }
 
 
 def test_invalid_credentials_and_token_are_rejected(client: TestClient) -> None:
@@ -44,3 +53,12 @@ def test_missing_and_foreign_orders_share_external_error(
     response = client.get("/orders/unknown", headers=auth_headers)
     assert response.status_code == 404
     assert response.json()["detail"]["code"] == "order_not_found"
+    logistics = client.get("/orders/unknown/logistics", headers=auth_headers)
+    assert (logistics.status_code, logistics.json()) == (response.status_code, response.json())
+
+
+def test_openapi_lists_order_and_logistics_endpoints(client: TestClient) -> None:
+    paths = client.get("/openapi.json").json()["paths"]
+    assert "/orders" in paths
+    assert "/orders/{order_id}" in paths
+    assert "/orders/{order_id}/logistics" in paths

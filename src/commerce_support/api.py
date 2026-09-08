@@ -88,6 +88,13 @@ def create_app(
         except NotFound as error:
             raise HTTPException(status_code=404, detail={"code": "order_not_found"}) from error
 
+    @app.get("/orders/{order_id}/logistics")
+    def logistics(order_id: str, user_id: str = Depends(current_user)) -> dict[str, object]:
+        try:
+            return repository.get_logistics(user_id, order_id).model_dump(mode="json")
+        except NotFound as error:
+            raise HTTPException(status_code=404, detail={"code": "order_not_found"}) from error
+
     @app.post("/chat")
     def chat(body: ChatRequest, user_id: str = Depends(current_user)) -> StreamingResponse:
         state = ConversationState(

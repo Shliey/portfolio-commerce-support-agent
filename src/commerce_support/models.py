@@ -41,6 +41,14 @@ class Order(BaseModel):
     items: list[OrderItem]
 
 
+class Logistics(BaseModel):
+    order_id: str
+    status: OrderStatus
+    carrier: str | None = None
+    tracking_number: str | None = None
+    delivered_at: datetime | None = None
+
+
 class RequestScope(BaseModel):
     user_id: str
     thread_id: str

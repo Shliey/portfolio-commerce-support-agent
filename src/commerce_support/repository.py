@@ -9,7 +9,17 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
-from .models import Approval, Order, OrderItem, OrderStatus, RequestScope, ReturnDraft, Ticket, User
+from .models import (
+    Approval,
+    Logistics,
+    Order,
+    OrderItem,
+    OrderStatus,
+    RequestScope,
+    ReturnDraft,
+    Ticket,
+    User,
+)
 from .passwords import hash_password, verify_password
 
 DUMMY_PASSWORD_HASH = hash_password("invalid-password", salt=b"fixed-dummy-salt")
@@ -137,6 +147,16 @@ class SQLiteRepository:
         if not row:
             raise NotFound("order_not_found")
         return self._order(row)
+
+    def get_logistics(self, user_id: str, order_id: str) -> Logistics:
+        order = self.get_order(user_id, order_id)
+        return Logistics(
+            order_id=order.id,
+            status=order.status,
+            carrier="Demo Express" if order.status != OrderStatus.PLACED else None,
+            tracking_number="DEMO-1001" if order.status != OrderStatus.PLACED else None,
+            delivered_at=order.delivered_at,
+        )
 
     @staticmethod
     def _order(row: sqlite3.Row) -> Order:
