@@ -74,11 +74,12 @@
 - 本机使用 `fastembed:BAAI/bge-small-en-v1.5` 完成独立真实语义检索评测；30 条样本的
   Hit@1、Hit@3、MRR、引用合法率和拒答召回均为 1.0，且明确标记 `real_model_used=false`。
 - 真实 LLM 路由评测 runner 固定 8 条版本化样本并记录 prompt/model、成功率、P50/P95 延迟和 token；
-  默认 CI 禁止调用，只有同时显式设置 `RUN_REAL_MODEL_EVAL=1` 和 API key 才会执行。
+  默认 CI 禁止调用，只有同时显式设置 `RUN_REAL_MODEL_EVAL=1` 和 API key 才会执行；注入 fake model 的 CLI
+  集成测试证明开关打开时会走完整 runner 与报告写入路径，但不冒充真实模型结果。
 - 生产应用工厂从环境读取 secret、业务库、checkpoint 库和前端产物路径；同源静态前端、健康检查、
   登录和双数据库已通过真实 Uvicorn 进程级 smoke test。
 - 多阶段 Dockerfile、Compose 持久卷与容器健康检查已实现；当前机器没有 Docker CLI，镜像尚未实际构建。
-- 后端 72 个测试、前端 7 个单元/组件测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
+- 后端 73 个测试、前端 7 个单元/组件测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
 - CI 已覆盖后端静态检查/测试/RAG 报告、前端单测/typecheck/build/密钥扫描/E2E；README 必备章节由测试门禁。
 
 具体数字见 `artifacts/verification.json`。

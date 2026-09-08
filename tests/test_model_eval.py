@@ -1,9 +1,12 @@
+import json
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import pytest
 
-from evals.model_smoke import evaluate_model, require_real_model_credentials
+from evals.model_smoke import evaluate_model, main, require_real_model_credentials
 
 
 @dataclass
@@ -56,3 +59,24 @@ def test_real_model_runner_requires_credentials(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     with pytest.raises(RuntimeError, match="API_KEY"):
         require_real_model_credentials()
+
+
+def test_real_model_cli_path_runs_only_when_explicitly_enabled(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    output = tmp_path / "gated-model-report.json"
+    monkeypatch.setenv("RUN_REAL_MODEL_EVAL", "1")
+    monkeypatch.setenv("LLM_API_KEY", "test-placeholder-never-sent")
+    monkeypatch.setenv("LLM_MODEL_NAME", "fake:gated-routing")
+    monkeypatch.setattr(
+        "evals.model_smoke.init_chat_model", lambda *args, **kwargs: FakeRoutingModel()
+    )
+    monkeypatch.setattr(sys, "argv", ["model_smoke", "--output", str(output)])
+
+    main()
+
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["model_id"] == "fake:gated-routing"
+    assert report["real_model_used"] is True
+    assert report["suite_version"] == "model-v1"
+    assert report["sample_size"] == 8
