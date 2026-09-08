@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TypedDict
 
@@ -28,10 +29,17 @@ class ReturnWorkflowState(TypedDict, total=False):
 class ReturnWorkflow:
     """A restart-resumable return workflow backed by a separate checkpoint database."""
 
-    def __init__(self, repository: SQLiteRepository, checkpoint_path: Path | str) -> None:
+    def __init__(
+        self,
+        repository: SQLiteRepository,
+        checkpoint_path: Path | str,
+        *,
+        after_business_write: Callable[[], None] | None = None,
+    ) -> None:
         self.repository = repository
         self.checkpoint_path = Path(checkpoint_path)
         self.checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        self.after_business_write = after_business_write
 
     @staticmethod
     def checkpoint_key(scope: RequestScope) -> str:
@@ -60,6 +68,8 @@ class ReturnWorkflow:
             )
             approved = bool(decision.get("approve")) if isinstance(decision, dict) else False
             ticket = self.repository.decide_approval(scope.user_id, approval.id, approved)
+            if ticket is not None and self.after_business_write is not None:
+                self.after_business_write()
             return {
                 **state,
                 "approval_id": approval.id,

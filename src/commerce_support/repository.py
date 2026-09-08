@@ -64,6 +64,22 @@ class SQLiteRepository:
         finally:
             connection.close()
 
+    @contextmanager
+    def write_connection(self) -> Iterator[sqlite3.Connection]:
+        """Serialize writes across processes with SQLite, not only this Python instance."""
+        connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA busy_timeout = 30000")
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            yield connection
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
     def seed(self) -> None:
         items = [
             OrderItem(
@@ -123,7 +139,7 @@ class SQLiteRepository:
 
     def create_approval(self, scope: RequestScope, draft: ReturnDraft) -> Approval:
         approval = Approval(id=f"approval-{uuid.uuid4().hex[:10]}", scope=scope, draft=draft)
-        with self._write_lock, self.connection() as connection:
+        with self._write_lock, self.write_connection() as connection:
             existing = connection.execute(
                 "SELECT * FROM approvals WHERE request_id=?", (scope.request_id,)
             ).fetchone()
@@ -178,7 +194,7 @@ class SQLiteRepository:
         return self._approval(row)
 
     def decide_approval(self, user_id: str, approval_id: str, approve: bool) -> Ticket | None:
-        with self._write_lock, self.connection() as connection:
+        with self._write_lock, self.write_connection() as connection:
             row = connection.execute(
                 "SELECT * FROM approvals WHERE id=? AND user_id=?", (approval_id, user_id)
             ).fetchone()
@@ -215,6 +231,13 @@ class SQLiteRepository:
                 ),
             )
             return ticket
+
+    def count_tickets(self, request_id: str) -> int:
+        with self.connection() as connection:
+            row = connection.execute(
+                "SELECT COUNT(*) AS count FROM tickets WHERE request_id=?", (request_id,)
+            ).fetchone()
+        return int(row["count"])
 
     @staticmethod
     def _approval(row: sqlite3.Row) -> Approval:

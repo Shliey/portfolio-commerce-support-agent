@@ -1,4 +1,5 @@
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -63,3 +64,45 @@ def test_business_and_checkpoint_schemas_are_separate(
     assert "checkpoints" not in business_tables
     assert "checkpoints" in checkpoint_tables
     assert "tickets" not in checkpoint_tables
+
+
+def test_concurrent_approvals_across_repository_instances_write_one_ticket(
+    repository: SQLiteRepository,
+) -> None:
+    scope = RequestScope(user_id="user-1", thread_id="thread-1", request_id="request-1")
+    workflow = ReturnWorkflow(repository, repository.path.with_name("checkpoints.db"))
+    workflow.start(scope, "order-1001", "damaged")
+    approval = repository.get_approval_by_request("user-1", "request-1")
+
+    def approve_once(_: int) -> str:
+        independent = SQLiteRepository(repository.path)
+        ticket = independent.decide_approval("user-1", approval.id, True)
+        assert ticket is not None
+        return ticket.id
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        ticket_ids = list(pool.map(approve_once, range(16)))
+
+    assert len(set(ticket_ids)) == 1
+    assert repository.count_tickets("request-1") == 1
+
+
+def test_crash_after_business_commit_resumes_without_duplicate(
+    repository: SQLiteRepository, tmp_path: Path
+) -> None:
+    checkpoint_path = tmp_path / "checkpoints.db"
+    scope = RequestScope(user_id="user-1", thread_id="thread-1", request_id="request-1")
+
+    def crash() -> None:
+        raise RuntimeError("injected crash after ticket commit")
+
+    crashing = ReturnWorkflow(repository, checkpoint_path, after_business_write=crash)
+    crashing.start(scope, "order-1001", "damaged")
+    with pytest.raises(RuntimeError, match="injected crash"):
+        crashing.resume(scope, True)
+
+    assert repository.count_tickets("request-1") == 1
+    recovered = ReturnWorkflow(repository, checkpoint_path).resume(scope, True)
+    assert recovered["status"] == "approved"
+    assert recovered["ticket"]["request_id"] == "request-1"
+    assert repository.count_tickets("request-1") == 1
