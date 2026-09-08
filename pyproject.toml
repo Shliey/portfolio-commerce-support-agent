@@ -31,7 +31,7 @@ packages = ["src/commerce_support"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 addopts = "-q --basetemp=.pytest-tmp -p no:cacheprovider"
 
 [tool.ruff]
