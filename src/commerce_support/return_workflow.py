@@ -5,6 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TypedDict
 
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
@@ -12,6 +13,14 @@ from langgraph.types import Command, interrupt
 from .eligibility import evaluate_return
 from .models import RequestScope
 from .repository import SQLiteRepository
+
+
+def strict_checkpoint_serializer() -> JsonPlusSerializer:
+    return JsonPlusSerializer(
+        pickle_fallback=False,
+        allowed_json_modules=None,
+        allowed_msgpack_modules=None,
+    )
 
 
 class ReturnWorkflowState(TypedDict, total=False):
@@ -101,7 +110,7 @@ class ReturnWorkflow:
     ) -> dict[str, Any]:
         connection = sqlite3.connect(self.checkpoint_path, check_same_thread=False)
         try:
-            saver = SqliteSaver(connection)
+            saver = SqliteSaver(connection, serde=strict_checkpoint_serializer())
             saver.setup()
             graph = self._build(saver)
             result = graph.invoke(

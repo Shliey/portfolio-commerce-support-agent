@@ -7,7 +7,7 @@
     "uv": "0.11.4"
   },
   "backend": {
-    "pytest": { "passed": 41, "failed": 0, "warning": 1 },
+    "pytest": { "passed": 42, "failed": 0, "warning": 1 },
     "ruff_check": "passed",
     "ruff_format_check": "passed",
     "mypy_strict": "passed",
