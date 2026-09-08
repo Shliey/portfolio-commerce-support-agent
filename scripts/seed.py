@@ -15,8 +15,8 @@ def main() -> None:
         default=Path(os.getenv("BUSINESS_DB", "data/business.db")),
     )
     args = parser.parse_args()
-    repository = SQLiteRepository(args.database)
-    repository.seed()
+    with SQLiteRepository(args.database) as repository:
+        repository.seed()
     print(f"seeded={args.database}")
 
 

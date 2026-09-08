@@ -3,6 +3,8 @@ on: [push, pull_request]
 jobs:
   backend:
     runs-on: ubuntu-latest
+    env:
+      RUN_REAL_MODEL_EVAL: "0"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -35,7 +37,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm test
-      - run: npm run typecheck
+      - run: npm run typecheck -- --strict
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e

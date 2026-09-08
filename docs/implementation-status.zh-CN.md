@@ -3,6 +3,7 @@
 ## 已实现并在本机验证
 
 - 独立 Python 包、uv 锁文件与 GitHub Actions 配置。
+- `uv sync --frozen`、`uv lock --check`、Python >=3.12 与核心依赖导入均已按任务原命令复验。
 - Typed configuration error 与统一 DI graph 覆盖 chat model、embedding、repository、checkpointer；
   全 fake 构造测试证明默认 CI 不触发网络或真实模型。
 - FastAPI 登录、订单与结构化物流查询、SSE chat、审批列表和审批决定接口；演示密码以随机盐 PBKDF2 保存，
@@ -82,7 +83,8 @@
   登录和双数据库已通过真实 Uvicorn 进程级 smoke test。
 - 多阶段 Dockerfile、Compose 持久卷与容器健康检查已实现；当前机器没有 Docker CLI，镜像尚未实际构建。
 - 后端 75 个测试、前端 7 个单元/组件测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
-- CI 已覆盖后端静态检查/测试/RAG 报告、前端单测/typecheck/build/密钥扫描/E2E；README 必备章节由测试门禁。
+- CI 显式固定 `RUN_REAL_MODEL_EVAL=0`，覆盖后端静态检查/测试/RAG 报告、前端单测、任务原文要求的
+  `npm run typecheck -- --strict`、build/密钥扫描/E2E；README 必备章节由测试门禁。
 
 具体数字见 `artifacts/verification.json`。
 
