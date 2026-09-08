@@ -40,10 +40,6 @@ CREATE TABLE IF NOT EXISTS tickets (
   id TEXT PRIMARY KEY, request_id TEXT UNIQUE NOT NULL, user_id TEXT NOT NULL,
   order_id TEXT NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS conversation_state (
-  checkpoint_key TEXT PRIMARY KEY, user_id TEXT NOT NULL, thread_id TEXT NOT NULL,
-  request_id TEXT NOT NULL, state_json TEXT NOT NULL
-);
 """
 
 
@@ -162,6 +158,24 @@ class SQLiteRepository:
                 "SELECT * FROM approvals WHERE user_id=? ORDER BY created_at", (user_id,)
             ).fetchall()
         return [self._approval(row) for row in rows]
+
+    def get_approval(self, user_id: str, approval_id: str) -> Approval:
+        with self.connection() as connection:
+            row = connection.execute(
+                "SELECT * FROM approvals WHERE id=? AND user_id=?", (approval_id, user_id)
+            ).fetchone()
+        if not row:
+            raise NotFound("approval_not_found")
+        return self._approval(row)
+
+    def get_approval_by_request(self, user_id: str, request_id: str) -> Approval:
+        with self.connection() as connection:
+            row = connection.execute(
+                "SELECT * FROM approvals WHERE request_id=? AND user_id=?", (request_id, user_id)
+            ).fetchone()
+        if not row:
+            raise NotFound("approval_not_found")
+        return self._approval(row)
 
     def decide_approval(self, user_id: str, approval_id: str, approve: bool) -> Ticket | None:
         with self._write_lock, self.connection() as connection:

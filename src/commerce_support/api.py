@@ -107,10 +107,11 @@ def create_app(
         approval_id: str, body: DecisionRequest, user_id: str = Depends(current_user)
     ) -> dict[str, object]:
         try:
-            ticket = repository.decide_approval(user_id, approval_id, body.approve)
+            result = runtime.resume_return(user_id, approval_id, body.approve)
+            ticket = result.get("ticket")
             return {
                 "status": "approved" if body.approve else "rejected",
-                "ticket": ticket.model_dump(mode="json") if ticket else None,
+                "ticket": ticket,
             }
         except NotFound as error:
             raise HTTPException(status_code=404, detail={"code": "approval_not_found"}) from error

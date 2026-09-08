@@ -4,6 +4,7 @@ import json
 import re
 import uuid
 from collections.abc import Iterable
+from pathlib import Path
 from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -12,6 +13,7 @@ from .eligibility import evaluate_return
 from .models import ConversationState, EventType, Role, StreamEvent
 from .rag import OfflinePolicyRetriever
 from .repository import SQLiteRepository
+from .return_workflow import ReturnWorkflow
 
 ROLE_TOOLS: dict[Role, frozenset[str]] = {
     Role.TRIAGE: frozenset(),
@@ -50,10 +52,15 @@ def build_routing_graph() -> Any:
 
 
 class CommerceRuntime:
-    def __init__(self, repository: SQLiteRepository) -> None:
+    def __init__(
+        self, repository: SQLiteRepository, checkpoint_path: Path | str | None = None
+    ) -> None:
         self.repository = repository
         self.policy = OfflinePolicyRetriever()
         self.graph = build_routing_graph()
+        self.returns = ReturnWorkflow(
+            repository, checkpoint_path or repository.path.with_name("checkpoints.db")
+        )
 
     def stream(self, state: ConversationState) -> Iterable[StreamEvent]:
         run_id = f"run-{uuid.uuid4().hex}"
@@ -108,8 +115,15 @@ class CommerceRuntime:
         if not draft.eligible:
             yield event("message_update", {"eligible": False, "reasons": draft.reasons})
             return
-        approval = self.repository.create_approval(state.scope, draft)
+        self.returns.start(state.scope, order_id, reason)
+        approval = self.repository.get_approval_by_request(
+            state.scope.user_id, state.scope.request_id
+        )
         yield event("approval_required", approval.model_dump(mode="json"))
+
+    def resume_return(self, user_id: str, approval_id: str, approve: bool) -> dict[str, Any]:
+        approval = self.repository.get_approval(user_id, approval_id)
+        return self.returns.resume(approval.scope, approve)
 
     def _policy(self, state: ConversationState, event: Any) -> Iterable[StreamEvent]:
         yield event("tool_start", {"tool": "search_policy"})
