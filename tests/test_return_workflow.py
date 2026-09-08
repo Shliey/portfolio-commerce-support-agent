@@ -1,5 +1,6 @@
 import sqlite3
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from multiprocessing import get_context
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,13 @@ import pytest
 from commerce_support.models import RequestScope
 from commerce_support.repository import NotFound, SQLiteRepository
 from commerce_support.return_workflow import ReturnWorkflow
+
+
+def _approve_in_process(database: str, user_id: str, approval_id: str) -> str:
+    repository = SQLiteRepository(database)
+    ticket = repository.decide_approval(user_id, approval_id, True)
+    assert ticket is not None
+    return ticket.id
 
 
 def test_interrupt_survives_new_workflow_instance(
@@ -105,4 +113,24 @@ def test_crash_after_business_commit_resumes_without_duplicate(
     recovered = ReturnWorkflow(repository, checkpoint_path).resume(scope, True)
     assert recovered["status"] == "approved"
     assert recovered["ticket"]["request_id"] == "request-1"
+    assert repository.count_tickets("request-1") == 1
+
+
+def test_multiprocess_approval_pressure_writes_one_ticket(
+    repository: SQLiteRepository,
+) -> None:
+    scope = RequestScope(user_id="user-1", thread_id="thread-1", request_id="request-1")
+    ReturnWorkflow(repository, repository.path.with_name("checkpoints.db")).start(
+        scope, "order-1001", "damaged"
+    )
+    approval = repository.get_approval_by_request("user-1", "request-1")
+
+    with ProcessPoolExecutor(max_workers=4, mp_context=get_context("spawn")) as pool:
+        futures = [
+            pool.submit(_approve_in_process, str(repository.path), "user-1", approval.id)
+            for _ in range(8)
+        ]
+        ticket_ids = [future.result(timeout=30) for future in futures]
+
+    assert len(set(ticket_ids)) == 1
     assert repository.count_tickets("request-1") == 1

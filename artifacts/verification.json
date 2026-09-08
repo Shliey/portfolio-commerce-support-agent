@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-08T11:30:00+08:00",
+  "generated_at": "2026-09-08T11:40:00+08:00",
   "environment": {
     "os": "Windows",
     "python": "3.13.9",
@@ -7,7 +7,7 @@
     "uv": "0.11.4"
   },
   "backend": {
-    "pytest": { "passed": 22, "failed": 0, "warning": 1 },
+    "pytest": { "passed": 23, "failed": 0, "warning": 1 },
     "ruff_check": "passed",
     "ruff_format_check": "passed",
     "mypy_strict": "passed",
@@ -25,7 +25,6 @@
     "claim_boundary": "Deterministic offline contract tests only"
   },
   "not_yet_verified": [
-    "concurrent multi-process idempotency beyond tested independent threaded instances",
     "real semantic embedding retrieval quality",
     "30-case versioned RAG evaluation",
     "Playwright browser end-to-end flow",

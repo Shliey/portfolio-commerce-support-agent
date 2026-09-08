@@ -13,15 +13,15 @@
 - `approvals.request_id` 与 `tickets.request_id` 数据库唯一约束。
 - 相同请求重复创建 approval 返回原记录；重复批准返回原 ticket；参数变化返回冲突。
 - 使用 SQLite `BEGIN IMMEDIATE` 协调独立 Repository 实例的并发写入；16 次并发批准只产生一张工单。
+- Windows `spawn` 模式下 4 个进程执行 8 次竞争批准，最终返回同一 ticket ID 且数据库仅一行。
 - 故障注入覆盖“工单已提交、checkpoint 未更新”窗口；新 workflow 实例恢复后仍只有一张工单。
 - TypeScript strict 的审批时间线 UI。
-- 后端 22 个测试、前端 1 个测试、lint、format、strict mypy、typecheck、build 和 demo。
+- 后端 23 个测试、前端 1 个测试、lint、format、strict mypy、typecheck、build 和 demo。
 
 具体数字见 `artifacts/verification.json`。
 
 ## 下一阶段，不得提前写入简历
 
 - 当前 RAG 是 lexical offline stub；需接入真实 semantic embedding，并建立 30+ 版本化评测集。
-- 已验证多线程内的独立 SQLite Repository 实例；尚未做真正的多进程压力测试。
 - 前端当前解析完整 SSE response；需改为增量 ReadableStream，并加入 Playwright E2E。
 - 尚未运行真实模型、测量真实延迟/token 或部署，不得写相应结果。
