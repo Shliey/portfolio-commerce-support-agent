@@ -16,7 +16,13 @@ from .config import Settings
 from .dependencies import create_chat_model
 from .models import Approval, ConversationState, Logistics, Order, RequestScope, Ticket
 from .rag import SemanticPolicyRetriever, production_policy_retriever
-from .repository import IdempotencyConflict, NotFound, SQLiteRepository
+from .repository import (
+    IdempotencyConflict,
+    LogisticsUnavailable,
+    NotFound,
+    OrderStatusUnavailable,
+    SQLiteRepository,
+)
 from .runtime import CommerceRuntime, IntentRouter, ModelIntentRouter
 
 
@@ -71,6 +77,8 @@ AUTH_ERRORS: ResponseDocs = {401: {"model": ErrorResponse, "description": "inval
 ORDER_ERRORS: ResponseDocs = {
     **AUTH_ERRORS,
     404: {"model": ErrorResponse, "description": "order_not_found"},
+    409: {"model": ErrorResponse, "description": "order_status_unavailable"},
+    503: {"model": ErrorResponse, "description": "logistics_unavailable"},
 }
 APPROVAL_ERRORS: ResponseDocs = {
     **AUTH_ERRORS,
@@ -149,6 +157,14 @@ def create_app(
             return repository.get_logistics(user_id, order_id)
         except NotFound as error:
             raise HTTPException(status_code=404, detail={"code": "order_not_found"}) from error
+        except OrderStatusUnavailable as error:
+            raise HTTPException(
+                status_code=409, detail={"code": "order_status_unavailable"}
+            ) from error
+        except LogisticsUnavailable as error:
+            raise HTTPException(
+                status_code=503, detail={"code": "logistics_unavailable"}
+            ) from error
 
     @app.post(
         "/chat",

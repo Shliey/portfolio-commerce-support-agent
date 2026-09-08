@@ -100,6 +100,10 @@ uv run uvicorn commerce_support.api:create_app_from_env --factory --host 0.0.0.0
 | `GET` | `/approvals` | 查询当前用户审批 |
 | `POST` | `/approvals/{id}/decide` | 批准或拒绝并幂等建单 |
 
+稳定业务错误码包括 `invalid_token`、`invalid_credentials`、`order_not_found`（不存在与非所有者
+统一）、`order_status_unavailable`、`logistics_unavailable`、`approval_not_found`、
+`idempotency_conflict`、`tool_limit_exceeded`、`step_limit_exceeded` 和 `internal_error`。
+
 ## 事件协议
 
 每个正常事件都有 `run_id`、`thread_id`、`user_id` 和单调递增 `seq`。事件类型为

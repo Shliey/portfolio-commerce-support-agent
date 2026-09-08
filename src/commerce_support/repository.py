@@ -33,6 +33,14 @@ class IdempotencyConflict(Exception):
     """A request id was reused with different business parameters."""
 
 
+class LogisticsUnavailable(Exception):
+    """The owned order has no authoritative logistics record."""
+
+
+class OrderStatusUnavailable(Exception):
+    """The order has not reached a status that can have tracking data."""
+
+
 SCHEMA = """
 PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS users (
@@ -188,6 +196,10 @@ class SQLiteRepository:
             ).fetchone()
         if not row:
             raise NotFound("order_not_found")
+        if OrderStatus(row["status"]) == OrderStatus.PLACED:
+            raise OrderStatusUnavailable("order_status_unavailable")
+        if row["carrier"] is None or row["tracking_number"] is None:
+            raise LogisticsUnavailable("logistics_unavailable")
         return Logistics(
             order_id=row["id"],
             status=OrderStatus(row["status"]),

@@ -70,3 +70,31 @@ def test_openapi_lists_order_and_logistics_endpoints(client: TestClient) -> None
         "order_not_found"
     )
     assert paths["/login"]["post"]["responses"]["401"]["description"] == ("invalid_credentials")
+    logistics_responses = paths["/orders/{order_id}/logistics"]["get"]["responses"]
+    assert logistics_responses["409"]["description"] == "order_status_unavailable"
+    assert logistics_responses["503"]["description"] == "logistics_unavailable"
+
+
+def test_logistics_failures_have_stable_codes(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    repository = client.app.state.repository
+    with repository.connection() as connection:
+        connection.execute(
+            "INSERT INTO orders VALUES (?, ?, ?, ?, ?)",
+            ("order-placed", "user-1", "placed", None, "[]"),
+        )
+        connection.execute(
+            "INSERT INTO orders VALUES (?, ?, ?, ?, ?)",
+            ("order-shipped", "user-1", "shipped", None, "[]"),
+        )
+    placed = client.get("/orders/order-placed/logistics", headers=auth_headers)
+    shipped = client.get("/orders/order-shipped/logistics", headers=auth_headers)
+    assert (placed.status_code, placed.json()["detail"]["code"]) == (
+        409,
+        "order_status_unavailable",
+    )
+    assert (shipped.status_code, shipped.json()["detail"]["code"]) == (
+        503,
+        "logistics_unavailable",
+    )
