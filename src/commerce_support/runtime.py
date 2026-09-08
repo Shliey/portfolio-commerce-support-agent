@@ -25,6 +25,27 @@ ROLE_TOOLS: dict[Role, frozenset[str]] = {
 }
 
 
+class ToolNotAllowed(Exception):
+    pass
+
+
+def require_allowed_tool(
+    role: Role, tool: str, audit_sink: Any = None, context: dict[str, str] | None = None
+) -> None:
+    if tool not in ROLE_TOOLS[role]:
+        if audit_sink is not None:
+            audit_sink(
+                {
+                    **(context or {}),
+                    "call_type": "tool_authorization",
+                    "role": role.value,
+                    "name": tool,
+                    "status": "rejected",
+                }
+            )
+        raise ToolNotAllowed("tool_not_allowed")
+
+
 class GraphState(TypedDict, total=False):
     active_agent: str
     message: str
@@ -110,16 +131,17 @@ class CommerceRuntime:
         if role == Role.TRIAGE:
             yield event("message_update", {"text": "请说明是订单、退货还是政策问题。"})
         elif role == Role.ORDER:
-            yield from self._order(state, event, tools)
+            yield from self._order(state, event, tools, role)
         elif role == Role.RETURN:
-            yield from self._return(state, event, tools)
+            yield from self._return(state, event, tools, role)
         else:
-            yield from self._policy(state, event, tools)
+            yield from self._policy(state, event, tools, role)
         yield event("completed", {"active_agent": role.value})
 
     def _order(
-        self, state: ConversationState, event: Any, tools: ToolExecutor
+        self, state: ConversationState, event: Any, tools: ToolExecutor, role: Role
     ) -> Iterable[StreamEvent]:
+        require_allowed_tool(role, "list_orders")
         yield event("tool_start", {"tool": "list_orders"})
         orders = tools.call(
             "list_orders",
@@ -132,13 +154,14 @@ class CommerceRuntime:
         )
 
     def _return(
-        self, state: ConversationState, event: Any, tools: ToolExecutor
+        self, state: ConversationState, event: Any, tools: ToolExecutor, role: Role
     ) -> Iterable[StreamEvent]:
         order_id = state.order_id or self._extract_order_id(state.message)
         if not order_id:
             yield event("message_update", {"text": "请提供订单号。"})
             return
         reason = state.reason or state.message
+        require_allowed_tool(role, "get_order")
         yield event("tool_start", {"tool": "get_order"})
         order = tools.call(
             "get_order",
@@ -150,6 +173,7 @@ class CommerceRuntime:
         if not draft.eligible:
             yield event("message_update", {"eligible": False, "reasons": draft.reasons})
             return
+        require_allowed_tool(role, "create_approval")
         tools.call(
             "create_approval",
             lambda: self.returns.start(state.scope, order_id, reason),
@@ -165,8 +189,9 @@ class CommerceRuntime:
         return self.returns.resume(approval.scope, approve)
 
     def _policy(
-        self, state: ConversationState, event: Any, tools: ToolExecutor
+        self, state: ConversationState, event: Any, tools: ToolExecutor, role: Role
     ) -> Iterable[StreamEvent]:
+        require_allowed_tool(role, "search_policy")
         yield event("tool_start", {"tool": "search_policy"})
         answer = tools.call(
             "search_policy", lambda: self.policy.answer(state.message), {"question": state.message}

@@ -5,13 +5,39 @@ from fastapi.testclient import TestClient
 from commerce_support.auth import TokenService
 from commerce_support.models import ConversationState, RequestScope, Role
 from commerce_support.repository import SQLiteRepository
-from commerce_support.runtime import ROLE_TOOLS, CommerceRuntime, route_from_current, route_message
+from commerce_support.runtime import (
+    ROLE_TOOLS,
+    CommerceRuntime,
+    ToolNotAllowed,
+    require_allowed_tool,
+    route_from_current,
+    route_message,
+)
 
 
 def test_roles_have_explicit_tool_allowlists() -> None:
     assert ROLE_TOOLS[Role.TRIAGE] == frozenset()
     assert "create_approval" in ROLE_TOOLS[Role.RETURN]
     assert "create_approval" not in ROLE_TOOLS[Role.ORDER]
+
+
+def test_out_of_allowlist_tool_is_rejected_before_execution() -> None:
+    entries: list[dict[str, object]] = []
+    try:
+        require_allowed_tool(Role.ORDER, "create_approval", entries.append, {"run_id": "run-1"})
+    except ToolNotAllowed as error:
+        assert str(error) == "tool_not_allowed"
+    else:
+        raise AssertionError("out-of-allowlist tool was accepted")
+    assert entries == [
+        {
+            "run_id": "run-1",
+            "call_type": "tool_authorization",
+            "role": "order",
+            "name": "create_approval",
+            "status": "rejected",
+        }
+    ]
 
 
 def test_deterministic_routing() -> None:
