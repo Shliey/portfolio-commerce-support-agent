@@ -29,6 +29,7 @@
 
 ```powershell
 uv sync
+uv run python -m scripts.seed
 uv run pytest
 uv run python scripts/demo.py
 uv run uvicorn commerce_support.api:app --reload

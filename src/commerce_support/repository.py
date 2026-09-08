@@ -43,6 +43,16 @@ CREATE TABLE IF NOT EXISTS orders (
   delivered_at TEXT, items_json TEXT NOT NULL,
   FOREIGN KEY(user_id) REFERENCES users(id)
 );
+CREATE TABLE IF NOT EXISTS order_items (
+  order_id TEXT NOT NULL, sku TEXT NOT NULL, name TEXT NOT NULL,
+  quantity INTEGER NOT NULL CHECK(quantity > 0), unit_price_cents INTEGER NOT NULL,
+  returnable INTEGER NOT NULL,
+  PRIMARY KEY(order_id, sku), FOREIGN KEY(order_id) REFERENCES orders(id)
+);
+CREATE TABLE IF NOT EXISTS logistics (
+  order_id TEXT PRIMARY KEY, carrier TEXT, tracking_number TEXT, delivered_at TEXT,
+  FOREIGN KEY(order_id) REFERENCES orders(id)
+);
 CREATE TABLE IF NOT EXISTS approvals (
   id TEXT PRIMARY KEY, user_id TEXT NOT NULL, thread_id TEXT NOT NULL,
   request_id TEXT UNIQUE NOT NULL, order_id TEXT NOT NULL, reason TEXT NOT NULL,
@@ -52,6 +62,10 @@ CREATE TABLE IF NOT EXISTS approvals (
 CREATE TABLE IF NOT EXISTS tickets (
   id TEXT PRIMARY KEY, request_id TEXT UNIQUE NOT NULL, user_id TEXT NOT NULL,
   order_id TEXT NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS eval_runs (
+  id TEXT PRIMARY KEY, suite_version TEXT NOT NULL, environment TEXT NOT NULL,
+  real_model_used INTEGER NOT NULL, report_json TEXT NOT NULL, created_at TEXT NOT NULL
 );
 """
 
@@ -94,6 +108,7 @@ class SQLiteRepository:
             connection.close()
 
     def seed(self) -> None:
+        delivered_at = datetime.now(UTC).isoformat()
         items = [
             OrderItem(
                 sku="SKU-100",
@@ -117,8 +132,21 @@ class SQLiteRepository:
                     "order-1001",
                     "user-1",
                     "delivered",
-                    datetime.now(UTC).isoformat(),
+                    delivered_at,
                     json.dumps([item.model_dump(mode="json") for item in items]),
+                ),
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO order_items VALUES (?, ?, ?, ?, ?, ?)",
+                ("order-1001", "SKU-100", "Noise-cancelling headphones", 1, 12900, 1),
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO logistics VALUES (?, ?, ?, ?)",
+                (
+                    "order-1001",
+                    "Demo Express",
+                    "DEMO-1001",
+                    delivered_at,
                 ),
             )
 
@@ -149,13 +177,23 @@ class SQLiteRepository:
         return self._order(row)
 
     def get_logistics(self, user_id: str, order_id: str) -> Logistics:
-        order = self.get_order(user_id, order_id)
+        with self.connection() as connection:
+            row = connection.execute(
+                """
+                SELECT o.id, o.status, l.carrier, l.tracking_number, l.delivered_at
+                FROM orders o LEFT JOIN logistics l ON l.order_id=o.id
+                WHERE o.id=? AND o.user_id=?
+                """,
+                (order_id, user_id),
+            ).fetchone()
+        if not row:
+            raise NotFound("order_not_found")
         return Logistics(
-            order_id=order.id,
-            status=order.status,
-            carrier="Demo Express" if order.status != OrderStatus.PLACED else None,
-            tracking_number="DEMO-1001" if order.status != OrderStatus.PLACED else None,
-            delivered_at=order.delivered_at,
+            order_id=row["id"],
+            status=OrderStatus(row["status"]),
+            carrier=row["carrier"],
+            tracking_number=row["tracking_number"],
+            delivered_at=row["delivered_at"],
         )
 
     @staticmethod
