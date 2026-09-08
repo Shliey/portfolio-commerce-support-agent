@@ -300,6 +300,55 @@ def test_approval_rechecks_changed_order_at_api_boundary(
     assert client.app.state.repository.count_tickets("stale-request") == 0
 
 
+def test_request_id_parameter_conflict_is_a_stable_sse_error(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    base = {
+        "thread_id": "conflict-thread",
+        "request_id": "conflict-request",
+        "message": "return order-1001",
+    }
+    first = client.post("/chat", headers=auth_headers, json={**base, "reason": "damaged"})
+    assert "event: approval_required" in first.text
+    conflicting = client.post(
+        "/chat", headers=auth_headers, json={**base, "reason": "different reason"}
+    )
+    assert "event: error" in conflicting.text
+    assert '"code": "idempotency_conflict"' in conflicting.text
+    assert "Traceback" not in conflicting.text
+    assert "SELECT " not in conflicting.text
+
+
+def test_missing_or_foreign_approval_cannot_write_ticket(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    stream = client.post(
+        "/chat",
+        headers=auth_headers,
+        json={
+            "thread_id": "protected-approval",
+            "request_id": "protected-request",
+            "message": "return order-1001",
+            "reason": "damaged",
+        },
+    )
+    approval_id = next(
+        json.loads(line.removeprefix("data: "))["data"]["id"]
+        for line in stream.text.splitlines()
+        if '"type": "approval_required"' in line
+    )
+    attacker_headers = {"Authorization": f"Bearer {client.app.state.tokens.issue('attacker')}"}
+    missing = client.post(
+        "/approvals/does-not-exist/decide", headers=auth_headers, json={"approve": True}
+    )
+    foreign = client.post(
+        f"/approvals/{approval_id}/decide", headers=attacker_headers, json={"approve": True}
+    )
+    assert (missing.status_code, missing.json()) == (foreign.status_code, foreign.json())
+    assert missing.json() == {"detail": {"code": "approval_not_found"}}
+    assert client.app.state.repository.count_tickets("protected-request") == 0
+
+
 def test_thread_replay_is_user_scoped(client: TestClient, auth_headers: dict[str, str]) -> None:
     client.post(
         "/chat",
