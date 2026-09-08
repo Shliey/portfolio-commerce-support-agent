@@ -12,7 +12,7 @@ from langgraph.types import Command, interrupt
 
 from .eligibility import evaluate_return
 from .models import RequestScope
-from .repository import SQLiteRepository
+from .ports import BusinessRepository
 
 
 def strict_checkpoint_serializer() -> JsonPlusSerializer:
@@ -40,7 +40,7 @@ class ReturnWorkflow:
 
     def __init__(
         self,
-        repository: SQLiteRepository,
+        repository: BusinessRepository,
         checkpoint_path: Path | str,
         *,
         after_business_write: Callable[[], None] | None = None,

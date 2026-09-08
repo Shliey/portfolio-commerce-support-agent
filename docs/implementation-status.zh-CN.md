@@ -22,6 +22,8 @@
 - 可独立执行的 migration/seed 入口在干净数据库创建 users、orders、order_items、logistics、
   approvals、tickets、eval_runs，并从结构化物流表读取权威数据。
 - SQL 所有权过滤、确定性 7 天退货规则和人工审批。
+- 业务逻辑依赖不含 LangChain 的 `BusinessRepository` Protocol；`OrderTools` 统一提供结构化、
+  所有权保护的订单/历史/物流读取，SQLite 只是当前适配器。
 - `approvals.request_id` 与 `tickets.request_id` 数据库唯一约束。
 - 相同请求重复创建 approval 返回原记录；重复批准返回原 ticket；参数变化返回冲突。
 - 使用 SQLite `BEGIN IMMEDIATE` 协调独立 Repository 实例的并发写入；16 次并发批准只产生一张工单。
@@ -53,7 +55,7 @@
 - 生产应用工厂从环境读取 secret、业务库、checkpoint 库和前端产物路径；同源静态前端、健康检查、
   登录和双数据库已通过真实 Uvicorn 进程级 smoke test。
 - 多阶段 Dockerfile、Compose 持久卷与容器健康检查已实现；当前机器没有 Docker CLI，镜像尚未实际构建。
-- 后端 54 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
+- 后端 56 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
 - CI 已覆盖后端静态检查/测试/RAG 报告、前端单测/typecheck/build/密钥扫描/E2E；README 必备章节由测试门禁。
 
 具体数字见 `artifacts/verification.json`。

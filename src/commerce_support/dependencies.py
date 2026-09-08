@@ -7,12 +7,13 @@ from typing import Any, Protocol
 from langchain.chat_models import init_chat_model
 
 from .config import ConfigurationError, Settings
+from .ports import BusinessRepository
 from .rag import EmbeddingProvider, create_embedding_provider
 from .repository import SQLiteRepository
 
 
 class RepositoryFactory(Protocol):
-    def __call__(self, path: Path) -> SQLiteRepository: ...
+    def __call__(self, path: Path) -> BusinessRepository: ...
 
 
 class EmbeddingFactory(Protocol):
@@ -37,7 +38,7 @@ class DependencyFactories:
 
 @dataclass(frozen=True)
 class DependencyGraph:
-    repository: SQLiteRepository
+    repository: BusinessRepository
     embedding: EmbeddingProvider
     chat_model: Any
     checkpointer: Any

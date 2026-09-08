@@ -13,10 +13,12 @@ from pydantic import BaseModel
 from .eligibility import evaluate_return
 from .models import ConversationState, EventType, Role, StreamEvent
 from .observability import ToolExecutor, ToolLimitExceeded
+from .ports import BusinessRepository
 from .rag import OfflinePolicyRetriever, SemanticPolicyRetriever
-from .repository import IdempotencyConflict, NotFound, SQLiteRepository
+from .repository import IdempotencyConflict, NotFound
 from .return_workflow import ReturnWorkflow
 from .session_store import SessionStateStore
+from .tools import OrderTools
 
 ROLE_TOOLS: dict[Role, frozenset[str]] = {
     Role.TRIAGE: frozenset(),
@@ -120,7 +122,7 @@ def build_routing_graph(router: IntentRouter | None = None) -> Any:
 class CommerceRuntime:
     def __init__(
         self,
-        repository: SQLiteRepository,
+        repository: BusinessRepository,
         checkpoint_path: Path | str | None = None,
         *,
         audit_sink: Any = None,
@@ -130,6 +132,7 @@ class CommerceRuntime:
         max_tool_calls: int = 4,
     ) -> None:
         self.repository = repository
+        self.order_tools = OrderTools(repository)
         self.policy = policy_retriever or OfflinePolicyRetriever()
         self.graph = build_routing_graph(intent_router)
         resolved_checkpoint_path = Path(
@@ -197,7 +200,7 @@ class CommerceRuntime:
         yield event("tool_start", {"tool": "list_orders"})
         orders = tools.call(
             "list_orders",
-            lambda: self.repository.list_orders(state.scope.user_id),
+            lambda: self.order_tools.list_orders(state.scope.user_id),
             {"user_id": state.scope.user_id},
         )
         yield event("tool_end", {"tool": "list_orders", "count": len(orders)})
@@ -217,7 +220,7 @@ class CommerceRuntime:
         yield event("tool_start", {"tool": "get_order"})
         order = tools.call(
             "get_order",
-            lambda: self.repository.get_order(state.scope.user_id, order_id),
+            lambda: self.order_tools.get_order(state.scope.user_id, order_id),
             {"user_id": state.scope.user_id, "order_id": order_id},
         )
         yield event("tool_end", {"tool": "get_order", "order_id": order_id})
