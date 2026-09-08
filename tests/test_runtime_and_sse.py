@@ -8,6 +8,7 @@ from commerce_support.repository import SQLiteRepository
 from commerce_support.runtime import (
     ROLE_TOOLS,
     CommerceRuntime,
+    RoutingDecision,
     ToolNotAllowed,
     require_allowed_tool,
     route_from_current,
@@ -46,6 +47,26 @@ def test_deterministic_routing() -> None:
     assert route_message("show my orders") == Role.ORDER
     assert route_from_current("what about yesterday?", Role.ORDER) == Role.ORDER
     assert route_from_current("return this", Role.ORDER) == Role.RETURN
+
+
+def test_injected_router_uses_structured_decision(repository: SQLiteRepository) -> None:
+    class FakeRouter:
+        def route(self, message: str, current: Role) -> RoutingDecision:
+            assert message == "please help"
+            assert current == Role.TRIAGE
+            return RoutingDecision(role=Role.RETURN, order_id="order-1001", reason="damaged")
+
+    events = list(
+        CommerceRuntime(repository, intent_router=FakeRouter()).stream(
+            ConversationState(
+                scope=RequestScope(user_id="user-1", thread_id="structured", request_id="route-1"),
+                message="please help",
+            )
+        )
+    )
+    approval = next(event for event in events if event.type == "approval_required")
+    assert approval.data["draft"]["order_id"] == "order-1001"
+    assert approval.data["draft"]["reason"] == "damaged"
 
 
 def test_return_stream_has_correlated_monotonic_events(repository: SQLiteRepository) -> None:

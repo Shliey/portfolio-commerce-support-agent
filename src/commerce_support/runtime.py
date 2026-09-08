@@ -5,9 +5,10 @@ import re
 import uuid
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, Protocol, TypedDict
 
 from langgraph.graph import END, START, StateGraph
+from pydantic import BaseModel
 
 from .eligibility import evaluate_return
 from .models import ConversationState, EventType, Role, StreamEvent
@@ -46,9 +47,34 @@ def require_allowed_tool(
         raise ToolNotAllowed("tool_not_allowed")
 
 
+class RoutingDecision(BaseModel):
+    role: Role
+    order_id: str | None = None
+    reason: str | None = None
+
+
+class IntentRouter(Protocol):
+    def route(self, message: str, current: Role) -> RoutingDecision: ...
+
+
+class KeywordIntentRouter:
+    """Deterministic zero-cost router used by tests and the local demo."""
+
+    def route(self, message: str, current: Role) -> RoutingDecision:
+        role = route_from_current(message, current)
+        order_match = re.search(r"order-\d+", message, re.IGNORECASE)
+        return RoutingDecision(
+            role=role,
+            order_id=order_match.group(0).lower() if order_match else None,
+            reason=message if role == Role.RETURN else None,
+        )
+
+
 class GraphState(TypedDict, total=False):
     active_agent: str
     message: str
+    order_id: str | None
+    reason: str | None
 
 
 def route_message(message: str) -> Role:
@@ -67,12 +93,19 @@ def route_from_current(message: str, current: Role) -> Role:
     return current if routed == Role.TRIAGE and current != Role.TRIAGE else routed
 
 
-def build_routing_graph() -> Any:
+def build_routing_graph(router: IntentRouter | None = None) -> Any:
+    resolved_router = router or KeywordIntentRouter()
     graph: StateGraph[GraphState] = StateGraph(GraphState)
 
     def triage(state: GraphState) -> GraphState:
         current = Role(state.get("active_agent", Role.TRIAGE.value))
-        return {**state, "active_agent": route_from_current(state["message"], current).value}
+        decision = resolved_router.route(state["message"], current)
+        return {
+            **state,
+            "active_agent": decision.role.value,
+            "order_id": decision.order_id,
+            "reason": decision.reason,
+        }
 
     graph.add_node("triage", triage)
     graph.add_edge(START, "triage")
@@ -88,10 +121,11 @@ class CommerceRuntime:
         *,
         audit_sink: Any = None,
         policy_retriever: SemanticPolicyRetriever | None = None,
+        intent_router: IntentRouter | None = None,
     ) -> None:
         self.repository = repository
         self.policy = policy_retriever or OfflinePolicyRetriever()
-        self.graph = build_routing_graph()
+        self.graph = build_routing_graph(intent_router)
         resolved_checkpoint_path = Path(
             checkpoint_path or repository.path.with_name("checkpoints.db")
         )
@@ -126,6 +160,12 @@ class CommerceRuntime:
         previous_role = self.sessions.load(state.scope.user_id, state.scope.thread_id)
         routed = self.graph.invoke({"message": state.message, "active_agent": previous_role.value})
         role = Role(routed["active_agent"])
+        state = state.model_copy(
+            update={
+                "order_id": state.order_id or routed.get("order_id"),
+                "reason": state.reason or routed.get("reason"),
+            }
+        )
         self.sessions.save(state.scope.user_id, state.scope.thread_id, role)
         if role != previous_role:
             yield event("handoff", {"from": previous_role.value, "to": role.value})
