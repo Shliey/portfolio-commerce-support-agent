@@ -187,3 +187,20 @@ def test_same_thread_id_is_isolated_between_users(repository: SQLiteRepository) 
     runtime.sessions.save("user-1", "shared-thread", Role.RETURN)
     assert runtime.sessions.load("user-1", "shared-thread") == Role.RETURN
     assert runtime.sessions.load("attacker", "shared-thread") == Role.TRIAGE
+
+
+def test_session_store_releases_checkpoint_file_on_windows(repository: SQLiteRepository) -> None:
+    checkpoint_path = repository.path.with_name("deletable-checkpoints.db")
+    runtime = CommerceRuntime(repository, checkpoint_path)
+    list(
+        runtime.stream(
+            ConversationState(
+                scope=RequestScope(
+                    user_id="user-1", thread_id="cleanup-thread", request_id="cleanup-request"
+                ),
+                message="show orders",
+            )
+        )
+    )
+    checkpoint_path.unlink()
+    assert not checkpoint_path.exists()

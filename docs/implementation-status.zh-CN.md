@@ -10,6 +10,7 @@
 - LangGraph 路由图；结构化 handoff/tool/approval/completed 事件。
 - LangGraph `interrupt()` 与 SQLite Checkpointer；使用新 workflow 实例和新数据库连接恢复审批。
 - Checkpointer 显式禁用 pickle fallback，并将 JSON/msgpack 反序列化限制为内置安全类型；外部模块对象被拒绝。
+- 所有 Session SQLite 连接在 `finally` 显式关闭；Windows 验证可在运行后立即删除 checkpoint 文件。
 - `active_agent` 按 `(user_id, thread_id)` 持久化；新 Runtime 实例可延续角色且跨用户隔离。
 - 业务数据库与 checkpoint 数据库物理分离，并验证双方 schema 不交叉。
 - 可独立执行的 migration/seed 入口在干净数据库创建 users、orders、order_items、logistics、
@@ -42,7 +43,7 @@
 - 生产应用工厂从环境读取 secret、业务库、checkpoint 库和前端产物路径；同源静态前端、健康检查、
   登录和双数据库已通过真实 Uvicorn 进程级 smoke test。
 - 多阶段 Dockerfile、Compose 持久卷与容器健康检查已实现；当前机器没有 Docker CLI，镜像尚未实际构建。
-- 后端 46 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
+- 后端 47 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
 - CI 已覆盖后端静态检查/测试/RAG 报告、前端单测/typecheck/build/密钥扫描/E2E；README 必备章节由测试门禁。
 
 具体数字见 `artifacts/verification.json`。

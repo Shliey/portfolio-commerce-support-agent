@@ -22,11 +22,14 @@
 - 将订单所有权、7 天退货资格及人工审批从 LLM 决策下沉至确定性代码，实现
   “草稿—暂停—批准—写入”高风险操作闭环。
 - 分离 `user_id`、`thread_id`、`request_id`，在 SQLite 使用 `UNIQUE(request_id)` 保证业务幂等，
-  通过重复批准、参数冲突和故障恢复测试验证工单不重复创建。
+  通过 16 线程竞争、Windows 4 进程/8 次竞争、参数冲突和 crash-after-write 恢复验证工单只写一次。
 - 构建 FastAPI 与严格模式 TypeScript 演示端，展示角色切换、工具执行、政策引用和审批状态；
-  默认 CI 使用 fake/offline 组件，不产生模型调用费用。
+  47 个后端测试、前端单测与 Playwright 浏览器闭环均通过，默认 CI 不产生模型调用费用。
+- 建立 30 条版本化 Policy RAG 集合；离线 Hash stub 与本地 BGE semantic embedding 的 Hit@1、
+  Hit@3、MRR、引用合法率和拒答召回均为 1.0，并显式标记未调用生成式 LLM。
 
-将“全部测试通过”“N 个用例”“延迟 X ms”等占位信息替换为 `artifacts/verification.json` 的真实结果。
+以上数字必须与 `artifacts/verification.json` 同步；真实 LLM 延迟/token、Docker 镜像运行和云部署
+尚无证据，不写入简历。
 
 ## 60 秒介绍
 
