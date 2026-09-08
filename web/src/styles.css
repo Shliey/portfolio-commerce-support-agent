@@ -12,9 +12,11 @@ textarea { min-height: 90px; resize: vertical; border: 1px solid #bac6bf; border
 button { border: 0; border-radius: 12px; padding: 12px 20px; background: #eb6d3a; color: white; font-weight: 700; cursor: pointer; }
 button:disabled { opacity: .5; }
 .timeline { margin-top: 24px; display: grid; gap: 12px; }
+.orders { margin: 1.2rem 0; }
+.orders article { display: flex; gap: 1rem; align-items: baseline; }
+.orders article small { margin-left: auto; }
 article { background: rgba(255,255,255,.82); border: 1px solid #d8ded9; border-radius: 16px; padding: 16px; box-shadow: 0 8px 24px rgba(24,59,51,.06); }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: 0; }
 .actions { display: flex; gap: 8px; margin-top: 12px; }
 .secondary { background: #64746d; }
 @media (max-width: 620px) { form { grid-template-columns: 1fr; } main { margin-top: 24px; } }
-

@@ -19,11 +19,14 @@
 - Windows `spawn` 模式下 4 个进程执行 8 次竞争批准，最终返回同一 ticket ID 且数据库仅一行。
 - 故障注入覆盖“工单已提交、checkpoint 未更新”窗口；新 workflow 实例恢复后仍只有一张工单。
 - TypeScript strict 的审批时间线 UI。
+- UI 登录后展示所有权保护的订单历史，并在通用事件卡中展示角色、工具、RAG 引用和审批状态。
 - 前端使用 `ReadableStream` 增量解析 SSE，并在每个事件到达时更新执行时间线。
 - SSE 事件按用户、线程、run 和 seq 持久化在 checkpoint 边界；支持用户隔离的线程快照与断线 replay。
 - 工具执行边界记录 run/user/thread、调用名、耗时、尝试次数和状态；敏感字段递归脱敏，
   瞬时故障使用有界指数退避，每轮工具数超限即停止。
 - Playwright 启动隔离的 FastAPI/Vite 进程，验收登录、退货请求、审批和成功提示后自动回收进程。
+- Playwright E2E 同时断言订单历史、退货审批和唯一成功结果；Windows teardown 后 8010/5174 无监听残留。
+- 前端生产构建自动扫描 API key、provider token 与硬编码 Bearer 凭据模式，发现即失败。
 - RAG 提供真实 LangChain embedding 工厂；生产配置缺失模型名时拒绝启动，不静默降级到 Hash。
 - Policy 语料从业务代码迁至独立版本化文件，覆盖退货、电子保修、物流异常/赔付和促销退款；
   每个 chunk 保存 source、title、section、position 与 topic 元数据。

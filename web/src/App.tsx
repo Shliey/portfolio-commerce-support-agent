@@ -1,13 +1,19 @@
 import { FormEvent, useEffect, useState } from "react";
-import { AgentEvent, decide, login, sendMessage } from "./api";
+import { AgentEvent, Order, decide, listOrders, login, sendMessage } from "./api";
 import "./styles.css";
 
 export default function App() {
   const [token, setToken] = useState("");
+  const [orders, setOrders] = useState<Order[]>([]);
   const [message, setMessage] = useState("退货 order-1001，耳机有破损");
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { void login().then(setToken); }, []);
+  useEffect(() => {
+    void login().then(async accessToken => {
+      setToken(accessToken);
+      setOrders(await listOrders(accessToken));
+    });
+  }, []);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -32,6 +38,13 @@ export default function App() {
       <p>确定性权限与资格判断 · 人工审批 · 数据库幂等 · 可观测事件流</p></header>
     <section className="architecture"><span>用户意图</span><b>→</b><span>角色路由</span><b>→</b>
       <span>可信工具</span><b>→</b><span>人工审批</span><b>→</b><span>幂等写入</span></section>
+    <section aria-label="订单历史" className="orders">
+      <h2>我的订单</h2>
+      {orders.map(order => <article key={order.id}>
+        <strong>{order.id}</strong><span>{order.status}</span>
+        <small>{order.items.map(item => `${item.name} × ${item.quantity}`).join("，")}</small>
+      </article>)}
+    </section>
     <form onSubmit={submit}><textarea value={message} onChange={e => setMessage(e.target.value)} />
       <button disabled={!token || busy}>{busy ? "处理中…" : "发送请求"}</button></form>
     <section className="timeline">

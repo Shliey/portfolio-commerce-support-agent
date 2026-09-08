@@ -15,6 +15,12 @@ export function parseSse(text: string): AgentEvent[] {
 
 const API = import.meta.env.VITE_API_BASE ?? "";
 
+export type Order = {
+  id: string;
+  status: string;
+  items: Array<{ name: string; quantity: number; unit_price_cents: number }>;
+};
+
 export async function login(): Promise<string> {
   const response = await fetch(`${API}/login`, {
     method: "POST",
@@ -23,6 +29,14 @@ export async function login(): Promise<string> {
   });
   if (!response.ok) throw new Error("登录失败");
   return (await response.json() as { access_token: string }).access_token;
+}
+
+export async function listOrders(token: string): Promise<Order[]> {
+  const response = await fetch(`${API}/orders`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error("订单查询失败");
+  return response.json() as Promise<Order[]>;
 }
 
 export async function sendMessage(

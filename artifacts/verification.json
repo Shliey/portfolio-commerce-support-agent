@@ -15,10 +15,11 @@
   },
   "frontend": {
     "vitest": { "files_passed": 1, "tests_passed": 1, "failed": 0 },
-    "playwright": { "tests_passed": 1, "failed": 0, "flow": "login-return-approve-ticket" },
+    "playwright": { "tests_passed": 1, "failed": 0, "flow": "login-order-history-return-approve-single-ticket", "windows_process_cleanup": "passed" },
     "typescript_strict": "passed",
     "vite_production_build": "passed",
-    "bundle_js_gzip_kib": 61.21
+    "bundle_js_gzip_kib": 61.53,
+    "credential_scan": "passed"
   },
   "model_calls": {
     "real_model_used": false,
