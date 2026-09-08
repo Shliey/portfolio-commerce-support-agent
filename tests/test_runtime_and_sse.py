@@ -3,7 +3,6 @@ import json
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
-from commerce_support.auth import TokenService
 from commerce_support.models import ConversationState, RequestScope, Role
 from commerce_support.repository import SQLiteRepository
 from commerce_support.runtime import (
@@ -182,9 +181,7 @@ def test_thread_replay_is_user_scoped(client: TestClient, auth_headers: dict[str
         json={"thread_id": "private", "request_id": "private-1", "message": "show orders"},
     )
     # A valid token for a different identity cannot observe the existing thread.
-    attacker_headers = {
-        "Authorization": f"Bearer {TokenService('test-secret-at-least-sixteen').issue('attacker')}"
-    }
+    attacker_headers = {"Authorization": f"Bearer {client.app.state.tokens.issue('attacker')}"}
     assert client.get("/threads/private", headers=attacker_headers).status_code == 404
     assert client.get("/chat/private/events", headers=attacker_headers).text == ""
 

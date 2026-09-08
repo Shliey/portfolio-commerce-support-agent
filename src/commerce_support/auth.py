@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import base64
 import hashlib
 import hmac
-import json
+import secrets
+import threading
 import time
 
 
@@ -15,26 +15,33 @@ class TokenService:
     def __init__(self, secret: str, ttl_seconds: int = 3600) -> None:
         self.secret = secret.encode()
         self.ttl_seconds = ttl_seconds
+        self._sessions: dict[str, tuple[str, int]] = {}
+        self._lock = threading.Lock()
 
     def issue(self, user_id: str) -> str:
-        payload = json.dumps(
-            {"sub": user_id, "exp": int(time.time()) + self.ttl_seconds}, separators=(",", ":")
-        ).encode()
-        body = base64.urlsafe_b64encode(payload).rstrip(b"=")
-        signature = hmac.new(self.secret, body, hashlib.sha256).digest()
-        return (body + b"." + base64.urlsafe_b64encode(signature).rstrip(b"=")).decode()
+        nonce = secrets.token_urlsafe(24)
+        expires_at = int(time.time()) + self.ttl_seconds
+        with self._lock:
+            self._sessions[nonce] = (user_id, expires_at)
+        signature = hmac.new(self.secret, nonce.encode(), hashlib.sha256).hexdigest()
+        return f"{nonce}.{signature}"
 
     def verify(self, token: str) -> str:
         try:
-            body, signature = token.encode().split(b".", 1)
-            expected = hmac.new(self.secret, body, hashlib.sha256).digest()
-            actual = base64.urlsafe_b64decode(signature + b"=" * (-len(signature) % 4))
-            if not hmac.compare_digest(expected, actual):
+            nonce, signature = token.split(".", 1)
+            expected = hmac.new(self.secret, nonce.encode(), hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(expected, signature):
                 raise AuthenticationError("invalid_token")
-            payload = json.loads(base64.urlsafe_b64decode(body + b"=" * (-len(body) % 4)))
-            if payload["exp"] < int(time.time()):
+            with self._lock:
+                session = self._sessions.get(nonce)
+            if session is None:
                 raise AuthenticationError("invalid_token")
-            return str(payload["sub"])
+            user_id, expires_at = session
+            if expires_at < int(time.time()):
+                with self._lock:
+                    self._sessions.pop(nonce, None)
+                raise AuthenticationError("invalid_token")
+            return user_id
         except AuthenticationError:
             raise
         except Exception as error:

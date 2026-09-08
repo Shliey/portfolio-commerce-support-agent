@@ -255,6 +255,7 @@ def create_app(
 
     app.state.repository = repository
     app.state.runtime = runtime
+    app.state.tokens = tokens
     if static_dir is not None:
         resolved_static_dir = Path(static_dir)
         if not resolved_static_dir.is_dir():

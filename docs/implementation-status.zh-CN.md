@@ -7,6 +7,8 @@
   全 fake 构造测试证明默认 CI 不触发网络或真实模型。
 - FastAPI 登录、订单与结构化物流查询、SSE chat、审批列表和审批决定接口；演示密码以随机盐 PBKDF2 保存，
   登录校验使用恒定时间比较，未知用户与错误密码返回完全相同的外部响应。
+- 登录 token 改为随机 nonce + HMAC + 服务端会话映射，token 本身不携带 user/password；过期、篡改及
+  由其他 TokenService 伪造的 token 均拒绝。当前会话存储仍明确限定为单进程演示。
 - 物流区分 `order_not_found`、`order_status_unavailable` 与 `logistics_unavailable`，并固定 HTTP 状态、
   JSON 形状与 OpenAPI 描述。
 - OpenAPI 为全部公开 endpoint 声明请求/响应模型、SSE media type 和稳定的认证、not-found、
@@ -70,7 +72,7 @@
 - 生产应用工厂从环境读取 secret、业务库、checkpoint 库和前端产物路径；同源静态前端、健康检查、
   登录和双数据库已通过真实 Uvicorn 进程级 smoke test。
 - 多阶段 Dockerfile、Compose 持久卷与容器健康检查已实现；当前机器没有 Docker CLI，镜像尚未实际构建。
-- 后端 64 个测试、前端 3 个单元/组件测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
+- 后端 65 个测试、前端 3 个单元/组件测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
 - CI 已覆盖后端静态检查/测试/RAG 报告、前端单测/typecheck/build/密钥扫描/E2E；README 必备章节由测试门禁。
 
 具体数字见 `artifacts/verification.json`。

@@ -115,7 +115,8 @@ uv run uvicorn commerce_support.api:create_app_from_env --factory --host 0.0.0.0
 - 默认路由与 RAG 使用确定性离线实现，因此 CI 不消耗模型额度。
 - `OfflinePolicyRetriever` 是测试替身，不是生产语义检索；不得把它的指标写成真实模型效果。
 - 当前 SQLite 适合单机演示，不代表多实例生产环境。
-- 当前 token 是演示级 HMAC token，不替代 OAuth、会话吊销和生产密钥管理。
+- 当前 token 是带 HMAC 的随机 opaque token，服务端会话映射仅在单进程内存中；不替代 OAuth、
+  多实例共享会话、会话吊销和生产密钥管理。
 - 不连接真实支付、退款或物流系统。
 - 本机未安装 Docker，因此 Dockerfile/Compose 已实现但镜像未实际构建；也没有云端上线证据。
 - 当前环境无 LLM API key，真实路由成功率、延迟与 token 指标不存在。

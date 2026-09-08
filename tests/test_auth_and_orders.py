@@ -47,6 +47,15 @@ def test_expired_token_is_rejected() -> None:
         raise AssertionError("expired token was accepted")
 
 
+def test_token_is_opaque_and_contains_no_identity_or_password() -> None:
+    service = TokenService("test-secret-at-least-sixteen")
+    token = service.issue("user-1")
+    assert "user-1" not in token
+    assert "demo" not in token
+    assert "password" not in token
+    assert service.verify(token) == "user-1"
+
+
 def test_missing_and_foreign_orders_share_external_error(
     client: TestClient, auth_headers: dict[str, str]
 ) -> None:
