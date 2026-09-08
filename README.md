@@ -31,7 +31,7 @@
 uv sync
 uv run python -m scripts.seed
 uv run pytest
-uv run python scripts/demo.py
+uv run python -m scripts.demo
 uv run uvicorn commerce_support.api:app --reload
 
 cd web
@@ -104,12 +104,13 @@ uv run uvicorn commerce_support.api:create_app_from_env --factory --host 0.0.0.0
 统一）、`order_status_unavailable`、`logistics_unavailable`、`approval_not_found`、
 `idempotency_conflict`、`tool_limit_exceeded`、`step_limit_exceeded` 和 `internal_error`。
 审批后资格发生变化时返回 `return_not_eligible`，不创建工单。
+模型路由提供方持续失败时返回 `model_execution_failed`，不会向客户端泄露 provider 异常文本或 prompt。
 
 ## 事件协议
 
 每个正常事件都有 `run_id`、`thread_id`、`user_id` 和单调递增 `seq`。事件类型为
 `message_update`、`tool_start`、`tool_end`、`handoff`、`approval_required`、
-`completed`、`error`。这让 UI 不必从自然语言猜测 Agent 当前状态。
+`completed`、`error`、`limit_exceeded`。这让 UI 不必从自然语言猜测 Agent 当前状态。
 
 ## 验证边界
 
