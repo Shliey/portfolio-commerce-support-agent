@@ -61,6 +61,8 @@
     "mrr": 1.0,
     "source_legality_rate": 1.0,
     "refusal_recall": 1.0,
+    "cited_source_not_retrieved": 0,
+    "policy_fabricated_without_evidence": 0,
     "failures": 0
   },
   "semantic_rag_eval": {
@@ -74,6 +76,8 @@
     "mrr": 1.0,
     "source_legality_rate": 1.0,
     "refusal_recall": 1.0,
+    "cited_source_not_retrieved": 0,
+    "policy_fabricated_without_evidence": 0,
     "failures": 0
   },
   "not_yet_verified": [

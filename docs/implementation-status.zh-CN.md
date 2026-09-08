@@ -57,6 +57,8 @@
 - Policy 语料从业务代码迁至独立版本化文件，覆盖退货、电子保修、物流异常/赔付和促销退款；
   每个 chunk 保存 source、title、section、position 与 topic 元数据。
 - CI 使用明确标记为非语义测试替身的 `HashEmbedding`，运行 30 条版本化检索与拒答评测。
+- 两套 RAG 报告直接输出零容忍安全计数：`cited_source_not_retrieved=0`、
+  `policy_fabricated_without_evidence=0`，不再依赖从聚合比例反推。
 - 本机使用 `fastembed:BAAI/bge-small-en-v1.5` 完成独立真实语义检索评测；30 条样本的
   Hit@1、Hit@3、MRR、引用合法率和拒答召回均为 1.0，且明确标记 `real_model_used=false`。
 - 真实 LLM 路由评测 runner 固定 8 条版本化样本并记录 prompt/model、成功率、P50/P95 延迟和 token；

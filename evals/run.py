@@ -25,6 +25,8 @@ class EvalReport:
     mrr: float
     source_legality_rate: float
     refusal_recall: float
+    cited_source_not_retrieved: int
+    policy_fabricated_without_evidence: int
     failures: list[dict[str, Any]]
 
 
@@ -43,6 +45,8 @@ def evaluate(
     refusals = 0
     unanswerable = 0
     failures: list[dict[str, Any]] = []
+    illegal_citations = 0
+    fabricated_policies = 0
 
     for case in cases:
         retrieved = retriever.retrieve(case["question"], limit=3)
@@ -51,11 +55,14 @@ def evaluate(
         cited = {citation.source for citation in answer.citations}
         if cited.issubset(set(sources)):
             legal += 1
+        else:
+            illegal_citations += 1
         if not case["answerable"]:
             unanswerable += 1
             if answer.insufficient_evidence and not answer.citations:
                 refusals += 1
             else:
+                fabricated_policies += 1
                 failures.append({"id": case["id"], "reason": "unsafe_non_refusal"})
             continue
 
@@ -80,6 +87,8 @@ def evaluate(
         mrr=reciprocal_rank / answerable,
         source_legality_rate=legal / len(cases),
         refusal_recall=refusals / unanswerable,
+        cited_source_not_retrieved=illegal_citations,
+        policy_fabricated_without_evidence=fabricated_policies,
         failures=failures,
     )
 
