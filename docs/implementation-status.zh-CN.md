@@ -3,7 +3,8 @@
 ## 已实现并在本机验证
 
 - 独立 Python 包、uv 锁文件与 GitHub Actions 配置。
-- FastAPI 登录、订单查询、SSE chat、审批列表和审批决定接口。
+- FastAPI 登录、订单查询、SSE chat、审批列表和审批决定接口；演示密码以随机盐 PBKDF2 保存，
+  登录校验使用恒定时间比较，未知用户与错误密码返回完全相同的外部响应。
 - triage/order/return/policy 四角色及显式工具白名单。
 - LangGraph 路由图；结构化 handoff/tool/approval/completed 事件。
 - LangGraph `interrupt()` 与 SQLite Checkpointer；使用新 workflow 实例和新数据库连接恢复审批。
@@ -27,7 +28,7 @@
 - 生产应用工厂从环境读取 secret、业务库、checkpoint 库和前端产物路径；同源静态前端、健康检查、
   登录和双数据库已通过真实 Uvicorn 进程级 smoke test。
 - 多阶段 Dockerfile、Compose 持久卷与容器健康检查已实现；当前机器没有 Docker CLI，镜像尚未实际构建。
-- 后端 31 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
+- 后端 33 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
 
 具体数字见 `artifacts/verification.json`。
 

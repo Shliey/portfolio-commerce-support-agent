@@ -1,5 +1,8 @@
 from fastapi.testclient import TestClient
 
+from commerce_support.auth import AuthenticationError, TokenService
+from commerce_support.repository import SQLiteRepository
+
 
 def test_login_and_owner_can_read_order(client: TestClient, auth_headers: dict[str, str]) -> None:
     assert client.get("/health").json() == {"status": "ok"}
@@ -9,9 +12,30 @@ def test_login_and_owner_can_read_order(client: TestClient, auth_headers: dict[s
 
 
 def test_invalid_credentials_and_token_are_rejected(client: TestClient) -> None:
-    response = client.post("/login", json={"username": "demo", "password": "wrong"})
-    assert response.status_code == 401
+    wrong = client.post("/login", json={"username": "demo", "password": "wrong"})
+    unknown = client.post("/login", json={"username": "unknown", "password": "wrong"})
+    assert (wrong.status_code, wrong.json()) == (unknown.status_code, unknown.json())
     assert client.get("/orders", headers={"Authorization": "Bearer tampered"}).status_code == 401
+
+
+def test_seeded_password_is_hashed(repository: SQLiteRepository) -> None:
+    with repository.connection() as connection:
+        stored = connection.execute(
+            "SELECT password_hash FROM users WHERE username='demo'"
+        ).fetchone()["password_hash"]
+    assert stored != "demo-password"
+    assert "demo-password" not in stored
+    assert repository.authenticate("demo", "demo-password") is not None
+
+
+def test_expired_token_is_rejected() -> None:
+    service = TokenService("test-secret-at-least-sixteen", ttl_seconds=-1)
+    try:
+        service.verify(service.issue("user-1"))
+    except AuthenticationError:
+        pass
+    else:
+        raise AssertionError("expired token was accepted")
 
 
 def test_missing_and_foreign_orders_share_external_error(

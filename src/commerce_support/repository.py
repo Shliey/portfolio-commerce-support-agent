@@ -10,6 +10,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .models import Approval, Order, OrderItem, OrderStatus, RequestScope, ReturnDraft, Ticket, User
+from .passwords import hash_password, verify_password
+
+DUMMY_PASSWORD_HASH = hash_password("invalid-password", salt=b"fixed-dummy-salt")
 
 
 class NotFound(Exception):
@@ -92,7 +95,11 @@ class SQLiteRepository:
         with self.connection() as connection:
             connection.execute(
                 "INSERT OR IGNORE INTO users VALUES (?, ?, ?)",
-                ("user-1", "demo", "demo-password"),
+                ("user-1", "demo", hash_password("demo-password")),
+            )
+            connection.execute(
+                "UPDATE users SET password_hash=? WHERE username=? AND password_hash=?",
+                (hash_password("demo-password"), "demo", "demo-password"),
             )
             connection.execute(
                 "INSERT OR IGNORE INTO orders VALUES (?, ?, ?, ?, ?)",
@@ -108,10 +115,14 @@ class SQLiteRepository:
     def authenticate(self, username: str, password: str) -> User | None:
         with self.connection() as connection:
             row = connection.execute(
-                "SELECT id, username FROM users WHERE username=? AND password_hash=?",
-                (username, password),
+                "SELECT id, username, password_hash FROM users WHERE username=?",
+                (username,),
             ).fetchone()
-        return User.model_validate(dict(row)) if row else None
+        encoded = str(row["password_hash"]) if row else DUMMY_PASSWORD_HASH
+        valid = verify_password(password, encoded)
+        if not row or not valid:
+            return None
+        return User(id=row["id"], username=row["username"])
 
     def list_orders(self, user_id: str) -> list[Order]:
         with self.connection() as connection:
