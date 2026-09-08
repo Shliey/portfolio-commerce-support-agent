@@ -109,14 +109,7 @@ def create_app(
         )
 
         def safe_stream() -> Iterator[str]:
-            try:
-                yield from runtime.sse(state)
-            except NotFound:
-                yield 'event: error\ndata: {"code":"order_not_found"}\n\n'
-            except IdempotencyConflict:
-                yield 'event: error\ndata: {"code":"idempotency_conflict"}\n\n'
-            except Exception:
-                yield 'event: error\ndata: {"code":"internal_error"}\n\n'
+            yield from runtime.sse(state)
 
         return StreamingResponse(safe_stream(), media_type="text/event-stream")
 

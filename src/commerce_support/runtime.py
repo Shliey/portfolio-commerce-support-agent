@@ -13,7 +13,7 @@ from .eligibility import evaluate_return
 from .models import ConversationState, EventType, Role, StreamEvent
 from .observability import ToolExecutor
 from .rag import OfflinePolicyRetriever, SemanticPolicyRetriever
-from .repository import SQLiteRepository
+from .repository import IdempotencyConflict, NotFound, SQLiteRepository
 from .return_workflow import ReturnWorkflow
 from .session_store import SessionStateStore
 
@@ -206,6 +206,30 @@ class CommerceRuntime:
         return match.group(0).lower() if match else None
 
     def sse(self, state: ConversationState) -> Iterable[str]:
-        for item in self.stream(state):
-            self.sessions.append_event(item)
-            yield f"event: {item.type}\ndata: {json.dumps(item.model_dump(mode='json'))}\n\n"
+        last_event: StreamEvent | None = None
+        try:
+            for item in self.stream(state):
+                last_event = item
+                self.sessions.append_event(item)
+                yield self._encode_sse(item)
+        except Exception as error:
+            if isinstance(error, NotFound):
+                code = "order_not_found"
+            elif isinstance(error, IdempotencyConflict):
+                code = "idempotency_conflict"
+            else:
+                code = "internal_error"
+            failure = StreamEvent(
+                type="error",
+                run_id=last_event.run_id if last_event else f"run-{uuid.uuid4().hex}",
+                thread_id=state.scope.thread_id,
+                user_id=state.scope.user_id,
+                seq=(last_event.seq + 1) if last_event else 1,
+                data={"code": code},
+            )
+            self.sessions.append_event(failure)
+            yield self._encode_sse(failure)
+
+    @staticmethod
+    def _encode_sse(item: StreamEvent) -> str:
+        return f"event: {item.type}\ndata: {json.dumps(item.model_dump(mode='json'))}\n\n"

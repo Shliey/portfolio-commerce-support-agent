@@ -133,6 +133,34 @@ def test_thread_replay_is_user_scoped(client: TestClient, auth_headers: dict[str
     assert client.get("/chat/private/events", headers=attacker_headers).text == ""
 
 
+def test_sse_error_is_correlated_sanitized_and_replayable(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    response = client.post(
+        "/chat",
+        headers=auth_headers,
+        json={
+            "thread_id": "error-thread",
+            "request_id": "error-request",
+            "message": "return order-9999",
+        },
+    )
+    events = [
+        json.loads(line.removeprefix("data: "))
+        for line in response.text.splitlines()
+        if line.startswith("data: ")
+    ]
+    error = events[-1]
+    assert error["type"] == "error"
+    assert error["thread_id"] == "error-thread"
+    assert error["user_id"] == "user-1"
+    assert error["seq"] == 3
+    assert error["data"] == {"code": "order_not_found"}
+    assert "sqlite" not in response.text.lower()
+    replay = client.get("/chat/error-thread/events", headers=auth_headers)
+    assert '"type":"error"' in replay.text
+
+
 def test_active_agent_persists_across_runtime_restart(repository: SQLiteRepository) -> None:
     checkpoint_path = repository.path.with_name("checkpoints.db")
     scope1 = RequestScope(user_id="user-1", thread_id="thread-1", request_id="request-1")
