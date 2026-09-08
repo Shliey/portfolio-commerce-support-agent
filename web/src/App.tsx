@@ -8,29 +8,37 @@ export default function App() {
   const [message, setMessage] = useState("退货 order-1001，耳机有破损");
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   useEffect(() => {
     void login().then(async accessToken => {
       setToken(accessToken);
       setOrders(await listOrders(accessToken));
-    });
+    }).catch(reason => setError(reason instanceof Error ? reason.message : "初始化失败"));
   }, []);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!token) return;
     setBusy(true);
+    setError("");
     setEvents([]);
     try {
       await sendMessage(token, message, item => setEvents(current => [...current, item]));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "请求失败");
     } finally { setBusy(false); }
   }
 
   async function review(id: string, approve: boolean) {
-    await decide(token, id, approve);
-    setEvents(current => [...current, {
-      type: "message_update", run_id: "local", thread_id: "local", user_id: "user-1",
-      seq: current.length + 1, data: { text: approve ? "已批准，工单已创建。" : "已拒绝。" },
-    }]);
+    try {
+      await decide(token, id, approve);
+      setEvents(current => [...current, {
+        type: "message_update", run_id: "local", thread_id: "local", user_id: "user-1",
+        seq: current.length + 1, data: { text: approve ? "已批准，工单已创建。" : "已拒绝。" },
+      }]);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "审批失败");
+    }
   }
 
   return <main>
@@ -45,6 +53,7 @@ export default function App() {
         <small>{order.items.map(item => `${item.name} × ${item.quantity}`).join("，")}</small>
       </article>)}
     </section>
+    {error && <p role="alert">{error}</p>}
     <form onSubmit={submit}><textarea value={message} onChange={e => setMessage(e.target.value)} />
       <button disabled={!token || busy}>{busy ? "处理中…" : "发送请求"}</button></form>
     <section className="timeline">
