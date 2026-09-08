@@ -8,6 +8,7 @@ from commerce_support.repository import SQLiteRepository
 from commerce_support.runtime import (
     ROLE_TOOLS,
     CommerceRuntime,
+    ModelExecutionFailed,
     ModelIntentRouter,
     RoutingDecision,
     ToolNotAllowed,
@@ -101,6 +102,98 @@ def test_model_router_emits_structured_audit_without_prompt_content() -> None:
     assert entries[0]["input_tokens"] == 12
     assert entries[0]["output_tokens"] == 3
     assert "private order" not in str(entries)
+
+
+def test_model_router_retries_transient_failure_with_bounded_backoff() -> None:
+    class FakeRunnable:
+        calls = 0
+
+        def invoke(self, value: object) -> dict[str, object]:
+            self.calls += 1
+            if self.calls == 1:
+                raise TimeoutError("provider timeout with private prompt")
+            return {"parsed": {"role": "policy"}}
+
+    class FakeModel:
+        def with_structured_output(
+            self, schema: type[BaseModel], *, include_raw: bool
+        ) -> FakeRunnable:
+            return FakeRunnable()
+
+    entries: list[dict[str, object]] = []
+    sleeps: list[float] = []
+    router = ModelIntentRouter(
+        FakeModel(), entries.append, max_attempts=2, backoff_seconds=0.25, sleep=sleeps.append
+    )
+    decision = router.route("private policy question", Role.TRIAGE, {"run_id": "run-2"})
+    assert decision.role == Role.POLICY
+    assert sleeps == [0.25]
+    assert [entry["status"] for entry in entries] == ["retrying", "success"]
+    assert [entry["attempt"] for entry in entries] == [1, 2]
+    assert "private policy question" not in str(entries)
+    assert "provider timeout" not in str(entries)
+
+
+def test_model_router_persistent_failure_is_bounded_and_audited() -> None:
+    class FakeRunnable:
+        calls = 0
+
+        def invoke(self, value: object) -> object:
+            self.calls += 1
+            raise ConnectionError("provider unavailable")
+
+    class FakeModel:
+        runnable = FakeRunnable()
+
+        def with_structured_output(
+            self, schema: type[BaseModel], *, include_raw: bool
+        ) -> FakeRunnable:
+            return self.runnable
+
+    entries: list[dict[str, object]] = []
+    model = FakeModel()
+    router = ModelIntentRouter(model, entries.append, max_attempts=2, sleep=lambda _: None)
+    try:
+        router.route("secret input", Role.TRIAGE, {"run_id": "run-3"})
+    except ModelExecutionFailed as error:
+        assert str(error) == "model_execution_failed"
+    else:
+        raise AssertionError("persistent model failure was swallowed")
+    assert model.runnable.calls == 2
+    assert [entry["status"] for entry in entries] == ["retrying", "failed"]
+    assert "secret input" not in str(entries)
+    assert "provider unavailable" not in str(entries)
+
+
+def test_persistent_model_failure_emits_documented_sse_error(
+    repository: SQLiteRepository,
+) -> None:
+    class FakeRunnable:
+        def invoke(self, value: object) -> object:
+            raise TimeoutError("provider unavailable")
+
+    class FakeModel:
+        def with_structured_output(
+            self, schema: type[BaseModel], *, include_raw: bool
+        ) -> FakeRunnable:
+            return FakeRunnable()
+
+    router = ModelIntentRouter(FakeModel(), max_attempts=2, sleep=lambda _: None)
+    runtime = CommerceRuntime(repository, intent_router=router)
+    frames = "".join(
+        runtime.sse(
+            ConversationState(
+                scope=RequestScope(
+                    user_id="user-1", thread_id="model-failure", request_id="model-failure-1"
+                ),
+                message="show my private orders",
+            )
+        )
+    )
+    assert "event: error" in frames
+    assert '"code": "model_execution_failed"' in frames
+    assert "provider unavailable" not in frames
+    assert "private orders" not in frames
 
 
 def test_return_stream_has_correlated_monotonic_events(repository: SQLiteRepository) -> None:

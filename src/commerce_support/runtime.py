@@ -5,7 +5,7 @@ import logging
 import re
 import time
 import uuid
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any, Protocol, TypedDict
 
@@ -35,6 +35,10 @@ class ToolNotAllowed(Exception):
 
 
 class StepLimitExceeded(Exception):
+    pass
+
+
+class ModelExecutionFailed(Exception):
     pass
 
 
@@ -85,31 +89,76 @@ class StructuredOutputModel(Protocol):
 class ModelIntentRouter:
     """LLM-backed structured router; authorization and side effects remain outside the model."""
 
-    def __init__(self, model: StructuredOutputModel, audit_sink: Any = None) -> None:
+    def __init__(
+        self,
+        model: StructuredOutputModel,
+        audit_sink: Any = None,
+        *,
+        max_attempts: int = 2,
+        backoff_seconds: float = 0.01,
+        sleep: Callable[[float], None] = time.sleep,
+    ) -> None:
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be at least 1")
         self.runnable = model.with_structured_output(RoutingDecision, include_raw=True)
         self.audit_sink = audit_sink or self._default_sink
+        self.max_attempts = max_attempts
+        self.backoff_seconds = backoff_seconds
+        self.sleep = sleep
 
     @staticmethod
     def _default_sink(entry: dict[str, Any]) -> None:
         logging.getLogger("commerce_support.models").info("model_call", extra={"event": entry})
 
     def route(self, message: str, current: Role, context: dict[str, str]) -> RoutingDecision:
-        started = time.perf_counter()
-        result = self.runnable.invoke(
-            [
-                (
-                    "system",
-                    "Classify one commerce-support turn as triage, order, return, or policy. "
-                    "Extract an explicit order_id and return reason only when present. "
-                    f"The current role is {current.value}.",
-                ),
-                ("human", message),
-            ]
-        )
-        parsed = result.get("parsed") if isinstance(result, dict) and "parsed" in result else result
-        raw = result.get("raw") if isinstance(result, dict) else result
-        decision = RoutingDecision.model_validate(parsed)
-        usage = getattr(raw, "usage_metadata", None) or {}
+        prompt = [
+            (
+                "system",
+                "Classify one commerce-support turn as triage, order, return, or policy. "
+                "Extract an explicit order_id and return reason only when present. "
+                f"The current role is {current.value}.",
+            ),
+            ("human", message),
+        ]
+        for attempt in range(1, self.max_attempts + 1):
+            started = time.perf_counter()
+            try:
+                result = self.runnable.invoke(prompt)
+                parsed = (
+                    result.get("parsed")
+                    if isinstance(result, dict) and "parsed" in result
+                    else result
+                )
+                raw = result.get("raw") if isinstance(result, dict) else result
+                decision = RoutingDecision.model_validate(parsed)
+            except (TimeoutError, ConnectionError) as error:
+                self._record(
+                    context,
+                    started,
+                    attempt,
+                    "retrying" if attempt < self.max_attempts else "failed",
+                )
+                if attempt < self.max_attempts:
+                    self.sleep(self.backoff_seconds * (2 ** (attempt - 1)))
+                    continue
+                raise ModelExecutionFailed("model_execution_failed") from error
+            except Exception:
+                self._record(context, started, attempt, "failed")
+                raise
+            usage = getattr(raw, "usage_metadata", None) or {}
+            self._record(context, started, attempt, "success", usage)
+            return decision
+        raise AssertionError("unreachable")
+
+    def _record(
+        self,
+        context: dict[str, str],
+        started: float,
+        attempt: int,
+        status: str,
+        usage: dict[str, Any] | None = None,
+    ) -> None:
+        usage = usage or {}
         self.audit_sink(
             {
                 **context,
@@ -118,10 +167,10 @@ class ModelIntentRouter:
                 "duration_ms": round((time.perf_counter() - started) * 1000, 3),
                 "input_tokens": int(usage.get("input_tokens", 0)),
                 "output_tokens": int(usage.get("output_tokens", 0)),
-                "status": "success",
+                "attempt": attempt,
+                "status": status,
             }
         )
-        return decision
 
 
 class GraphState(TypedDict, total=False):
@@ -342,6 +391,9 @@ class CommerceRuntime:
                 event_type = "error"
             elif isinstance(error, IdempotencyConflict):
                 code = "idempotency_conflict"
+                event_type = "error"
+            elif isinstance(error, ModelExecutionFailed):
+                code = "model_execution_failed"
                 event_type = "error"
             else:
                 code = "internal_error"
