@@ -82,7 +82,9 @@
 - 生产应用工厂从环境读取 secret、业务库、checkpoint 库和前端产物路径；同源静态前端、健康检查、
   登录和双数据库已通过真实 Uvicorn 进程级 smoke test。
 - 多阶段 Dockerfile、Compose 持久卷与容器健康检查已实现；当前机器没有 Docker CLI，镜像尚未实际构建。
-- 后端 75 个测试、前端 7 个单元/组件测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
+- 后端 75 个测试（零 warning）、前端 7 个单元/组件测试和 1 个浏览器 E2E、lint、format、strict mypy、
+  typecheck、build 和 demo。仅精确过滤 Starlette `TestClient` 内部已知的 AnyIO alias 弃用消息，其他 warning
+  仍会正常报告。
 - CI 显式固定 `RUN_REAL_MODEL_EVAL=0`，覆盖后端静态检查/测试/RAG 报告、前端单测、任务原文要求的
   `npm run typecheck -- --strict`、build/密钥扫描/E2E；README 必备章节由测试门禁。
 

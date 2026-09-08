@@ -35,6 +35,9 @@ packages = ["src/commerce_support"]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
 addopts = "-q --basetemp=.pytest-tmp -p no:cacheprovider"
+filterwarnings = [
+  "ignore:The anyio\\.abc\\.BlockingPortal alias is deprecated:DeprecationWarning:starlette\\.testclient",
+]
 
 [tool.ruff]
 line-length = 100
