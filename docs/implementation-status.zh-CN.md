@@ -36,6 +36,8 @@
 - Playwright E2E 同时断言订单历史、退货审批和唯一成功结果；Windows teardown 后 8010/5174 无监听残留。
 - 前端生产构建自动扫描 API key、provider token 与硬编码 Bearer 凭据模式，发现即失败。
 - RAG 提供真实 LangChain embedding 工厂；生产配置缺失模型名时拒绝启动，不静默降级到 Hash。
+- Embedding 与 VectorStore 分别通过协议替换；内存向量库是默认实现，fake store 合同测试验证替换后
+  引用与拒答语义保持不变。
 - 生产应用工厂将配置的 semantic retriever 注入 runtime；真实 Uvicorn smoke 已用 BGE 回答电子保修问题并返回合法来源。
 - Policy 语料从业务代码迁至独立版本化文件，覆盖退货、电子保修、物流异常/赔付和促销退款；
   每个 chunk 保存 source、title、section、position 与 topic 元数据。
@@ -47,7 +49,7 @@
 - 生产应用工厂从环境读取 secret、业务库、checkpoint 库和前端产物路径；同源静态前端、健康检查、
   登录和双数据库已通过真实 Uvicorn 进程级 smoke test。
 - 多阶段 Dockerfile、Compose 持久卷与容器健康检查已实现；当前机器没有 Docker CLI，镜像尚未实际构建。
-- 后端 50 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
+- 后端 51 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
 - CI 已覆盖后端静态检查/测试/RAG 报告、前端单测/typecheck/build/密钥扫描/E2E；README 必备章节由测试门禁。
 
 具体数字见 `artifacts/verification.json`。

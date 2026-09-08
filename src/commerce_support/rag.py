@@ -49,6 +49,12 @@ class EmbeddingProvider(Protocol):
     def embed_query(self, text: str) -> list[float]: ...
 
 
+class VectorStore(Protocol):
+    def index(self, vectors: list[list[float]]) -> None: ...
+
+    def search(self, query: list[float], limit: int) -> list[tuple[int, float]]: ...
+
+
 _STOP_WORDS = {
     "about",
     "after",
@@ -113,6 +119,21 @@ def _cosine(left: list[float], right: list[float]) -> float:
     return sum(a * b for a, b in zip(left, right, strict=True))
 
 
+class InMemoryVectorStore:
+    def __init__(self) -> None:
+        self.vectors: list[list[float]] = []
+
+    def index(self, vectors: list[list[float]]) -> None:
+        self.vectors = vectors
+
+    def search(self, query: list[float], limit: int) -> list[tuple[int, float]]:
+        return sorted(
+            ((index, _cosine(query, vector)) for index, vector in enumerate(self.vectors)),
+            key=lambda item: item[1],
+            reverse=True,
+        )[:limit]
+
+
 class SemanticPolicyRetriever:
     def __init__(
         self,
@@ -120,22 +141,20 @@ class SemanticPolicyRetriever:
         chunks: list[PolicyChunk] | None = None,
         *,
         minimum_score: float = 0.15,
+        vector_store: VectorStore | None = None,
     ) -> None:
         self.embeddings = embeddings
         self.chunks = chunks or DEFAULT_POLICY
         self.minimum_score = minimum_score
-        self._vectors = embeddings.embed_documents([chunk.text for chunk in self.chunks])
+        self.vector_store = vector_store or InMemoryVectorStore()
+        self.vector_store.index(embeddings.embed_documents([chunk.text for chunk in self.chunks]))
 
     def retrieve(self, question: str, limit: int = 3) -> list[RetrievedChunk]:
         query = self.embeddings.embed_query(question)
-        ranked = sorted(
-            (
-                RetrievedChunk(chunk=chunk, score=_cosine(query, vector))
-                for chunk, vector in zip(self.chunks, self._vectors, strict=True)
-            ),
-            key=lambda result: result.score,
-            reverse=True,
-        )
+        ranked = [
+            RetrievedChunk(chunk=self.chunks[index], score=score)
+            for index, score in self.vector_store.search(query, limit)
+        ]
         return [result for result in ranked if result.score >= self.minimum_score][:limit]
 
     def answer(self, question: str) -> PolicyAnswer:
