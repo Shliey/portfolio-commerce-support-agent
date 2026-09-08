@@ -29,6 +29,8 @@
 - 可独立执行的 migration/seed 入口在干净数据库创建 users、orders、order_items、logistics、
   approvals、tickets、eval_runs，并从结构化物流表读取权威数据。
 - SQL 所有权过滤、确定性 7 天退货规则和人工审批。
+- 最终建单事务内再次读取订单并判定所有权/资格；审批等待期间状态变化返回
+  `return_not_eligible`，approval 保持 pending 且工单为零。
 - Missing 与真实 foreign-owned 订单/物流均经同一 `(id,user_id)` SQL 过滤，并验证 HTTP 状态和 JSON
   响应逐字一致，防止对象存在性枚举。
 - 业务逻辑依赖不含 LangChain 的 `BusinessRepository` Protocol；`OrderTools` 统一提供结构化、
@@ -72,7 +74,7 @@
 - 生产应用工厂从环境读取 secret、业务库、checkpoint 库和前端产物路径；同源静态前端、健康检查、
   登录和双数据库已通过真实 Uvicorn 进程级 smoke test。
 - 多阶段 Dockerfile、Compose 持久卷与容器健康检查已实现；当前机器没有 Docker CLI，镜像尚未实际构建。
-- 后端 65 个测试、前端 3 个单元/组件测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
+- 后端 67 个测试、前端 3 个单元/组件测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
 - CI 已覆盖后端静态检查/测试/RAG 报告、前端单测/typecheck/build/密钥扫描/E2E；README 必备章节由测试门禁。
 
 具体数字见 `artifacts/verification.json`。

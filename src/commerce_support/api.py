@@ -17,6 +17,7 @@ from .dependencies import create_chat_model
 from .models import Approval, ConversationState, Logistics, Order, RequestScope, Ticket
 from .rag import SemanticPolicyRetriever, production_policy_retriever
 from .repository import (
+    EligibilityChanged,
     IdempotencyConflict,
     LogisticsUnavailable,
     NotFound,
@@ -84,6 +85,7 @@ APPROVAL_ERRORS: ResponseDocs = {
     **AUTH_ERRORS,
     404: {"model": ErrorResponse, "description": "approval_not_found"},
     409: {"model": ErrorResponse, "description": "idempotency_conflict"},
+    422: {"model": ErrorResponse, "description": "return_not_eligible"},
 }
 
 
@@ -243,6 +245,8 @@ def create_app(
     ) -> ApprovalDecisionResponse:
         try:
             result = runtime.resume_return(user_id, approval_id, body.approve)
+            if result.get("status") == "ineligible":
+                raise HTTPException(status_code=422, detail={"code": "return_not_eligible"})
             ticket = result.get("ticket")
             return ApprovalDecisionResponse(
                 status="approved" if body.approve else "rejected",
@@ -252,6 +256,8 @@ def create_app(
             raise HTTPException(status_code=404, detail={"code": "approval_not_found"}) from error
         except IdempotencyConflict as error:
             raise HTTPException(status_code=409, detail={"code": str(error)}) from error
+        except EligibilityChanged as error:
+            raise HTTPException(status_code=422, detail={"code": "return_not_eligible"}) from error
 
     app.state.repository = repository
     app.state.runtime = runtime

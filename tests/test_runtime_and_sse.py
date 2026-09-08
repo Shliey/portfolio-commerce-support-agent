@@ -174,6 +174,39 @@ def test_chat_sse_and_disconnect_safe_approval(
     assert len(replay_data) == 5
 
 
+def test_approval_rechecks_changed_order_at_api_boundary(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    stream = client.post(
+        "/chat",
+        headers=auth_headers,
+        json={
+            "thread_id": "stale-thread",
+            "request_id": "stale-request",
+            "message": "return order-1001",
+            "reason": "damaged",
+        },
+    )
+    events = [
+        json.loads(line.removeprefix("data: "))
+        for line in stream.text.splitlines()
+        if line.startswith("data: ")
+    ]
+    approval_id = next(
+        event["data"]["id"] for event in events if event["type"] == "approval_required"
+    )
+    with client.app.state.repository.connection() as connection:
+        connection.execute("UPDATE orders SET status='shipped' WHERE id='order-1001'")
+    response = client.post(
+        f"/approvals/{approval_id}/decide", headers=auth_headers, json={"approve": True}
+    )
+    assert (response.status_code, response.json()["detail"]["code"]) == (
+        422,
+        "return_not_eligible",
+    )
+    assert client.app.state.repository.count_tickets("stale-request") == 0
+
+
 def test_thread_replay_is_user_scoped(client: TestClient, auth_headers: dict[str, str]) -> None:
     client.post(
         "/chat",

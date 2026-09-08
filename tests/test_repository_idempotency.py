@@ -4,7 +4,7 @@ import pytest
 
 from commerce_support.eligibility import evaluate_return
 from commerce_support.models import RequestScope
-from commerce_support.repository import IdempotencyConflict, SQLiteRepository
+from commerce_support.repository import EligibilityChanged, IdempotencyConflict, SQLiteRepository
 
 
 def test_same_request_creates_one_approval(repository: SQLiteRepository) -> None:
@@ -44,3 +44,17 @@ def test_database_rejects_duplicate_ticket_request_id(repository: SQLiteReposito
         with repository.connection() as connection:
             connection.execute("INSERT INTO tickets VALUES (?, ?, ?, ?, ?, ?)", duplicate)
     assert repository.count_tickets("direct-request") == 1
+
+
+def test_approval_rechecks_authoritative_eligibility_before_write(
+    repository: SQLiteRepository,
+) -> None:
+    order = repository.get_order("user-1", "order-1001")
+    scope = RequestScope(user_id="user-1", thread_id="thread-1", request_id="stale-approval")
+    approval = repository.create_approval(scope, evaluate_return(order, "damaged"))
+    with repository.connection() as connection:
+        connection.execute("UPDATE orders SET status='shipped' WHERE id='order-1001'")
+    with pytest.raises(EligibilityChanged, match="return_not_eligible"):
+        repository.decide_approval("user-1", approval.id, True)
+    assert repository.count_tickets("stale-approval") == 0
+    assert repository.get_approval("user-1", approval.id).status == "pending"

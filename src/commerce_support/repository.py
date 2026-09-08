@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
+from .eligibility import evaluate_return
 from .models import (
     Approval,
     Logistics,
@@ -39,6 +40,10 @@ class LogisticsUnavailable(Exception):
 
 class OrderStatusUnavailable(Exception):
     """The order has not reached a status that can have tracking data."""
+
+
+class EligibilityChanged(Exception):
+    """The authoritative order no longer satisfies the approved draft."""
 
 
 SCHEMA = """
@@ -284,9 +289,21 @@ class SQLiteRepository:
             desired = "approved" if approve else "rejected"
             if row["status"] not in ("pending", desired):
                 raise IdempotencyConflict("approval_already_decided")
-            connection.execute("UPDATE approvals SET status=? WHERE id=?", (desired, approval_id))
             if not approve:
+                connection.execute(
+                    "UPDATE approvals SET status=? WHERE id=?", (desired, approval_id)
+                )
                 return None
+            order_row = connection.execute(
+                "SELECT * FROM orders WHERE id=? AND user_id=?",
+                (row["order_id"], user_id),
+            ).fetchone()
+            if not order_row:
+                raise NotFound("order_not_found")
+            current_draft = evaluate_return(self._order(order_row), row["reason"])
+            if not current_draft.eligible:
+                raise EligibilityChanged("return_not_eligible")
+            connection.execute("UPDATE approvals SET status=? WHERE id=?", (desired, approval_id))
             existing = connection.execute(
                 "SELECT * FROM tickets WHERE request_id=?", (row["request_id"],)
             ).fetchone()
