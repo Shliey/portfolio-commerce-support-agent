@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any, Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from .auth import AuthenticationError, TokenService
 from .config import Settings
-from .models import ConversationState, RequestScope
+from .models import Approval, ConversationState, Logistics, Order, RequestScope, Ticket
 from .rag import SemanticPolicyRetriever, production_policy_retriever
 from .repository import IdempotencyConflict, NotFound, SQLiteRepository
 from .runtime import CommerceRuntime
@@ -34,6 +34,48 @@ class ChatRequest(BaseModel):
 
 class DecisionRequest(BaseModel):
     approve: bool
+
+
+class HealthResponse(BaseModel):
+    status: Literal["ok"]
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: Literal["bearer"]
+
+
+class ErrorDetail(BaseModel):
+    code: str
+
+
+class ErrorResponse(BaseModel):
+    detail: ErrorDetail
+
+
+class ThreadResponse(BaseModel):
+    thread_id: str
+    active_agent: str
+    event_count: int
+
+
+class ApprovalDecisionResponse(BaseModel):
+    status: Literal["approved", "rejected"]
+    ticket: Ticket | None
+
+
+type ResponseDocs = dict[int | str, dict[str, Any]]
+
+AUTH_ERRORS: ResponseDocs = {401: {"model": ErrorResponse, "description": "invalid_token"}}
+ORDER_ERRORS: ResponseDocs = {
+    **AUTH_ERRORS,
+    404: {"model": ErrorResponse, "description": "order_not_found"},
+}
+APPROVAL_ERRORS: ResponseDocs = {
+    **AUTH_ERRORS,
+    404: {"model": ErrorResponse, "description": "approval_not_found"},
+    409: {"model": ErrorResponse, "description": "idempotency_conflict"},
+}
 
 
 def create_app(
@@ -68,36 +110,50 @@ def create_app(
         except AuthenticationError as error:
             raise HTTPException(status_code=401, detail={"code": "invalid_token"}) from error
 
-    @app.get("/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
+    @app.get("/health", response_model=HealthResponse)
+    def health() -> HealthResponse:
+        return HealthResponse(status="ok")
 
-    @app.post("/login")
-    def login(body: LoginRequest) -> dict[str, str]:
+    @app.post(
+        "/login",
+        response_model=LoginResponse,
+        responses={401: {"model": ErrorResponse, "description": "invalid_credentials"}},
+    )
+    def login(body: LoginRequest) -> LoginResponse:
         user = repository.authenticate(body.username, body.password)
         if not user:
             raise HTTPException(status_code=401, detail={"code": "invalid_credentials"})
-        return {"access_token": tokens.issue(user.id), "token_type": "bearer"}
+        return LoginResponse(access_token=tokens.issue(user.id), token_type="bearer")
 
-    @app.get("/orders")
-    def orders(user_id: str = Depends(current_user)) -> list[dict[str, object]]:
-        return [order.model_dump(mode="json") for order in repository.list_orders(user_id)]
+    @app.get("/orders", response_model=list[Order], responses=AUTH_ERRORS)
+    def orders(user_id: str = Depends(current_user)) -> list[Order]:
+        return repository.list_orders(user_id)
 
-    @app.get("/orders/{order_id}")
-    def order(order_id: str, user_id: str = Depends(current_user)) -> dict[str, object]:
+    @app.get("/orders/{order_id}", response_model=Order, responses=ORDER_ERRORS)
+    def order(order_id: str, user_id: str = Depends(current_user)) -> Order:
         try:
-            return repository.get_order(user_id, order_id).model_dump(mode="json")
+            return repository.get_order(user_id, order_id)
         except NotFound as error:
             raise HTTPException(status_code=404, detail={"code": "order_not_found"}) from error
 
-    @app.get("/orders/{order_id}/logistics")
-    def logistics(order_id: str, user_id: str = Depends(current_user)) -> dict[str, object]:
+    @app.get("/orders/{order_id}/logistics", response_model=Logistics, responses=ORDER_ERRORS)
+    def logistics(order_id: str, user_id: str = Depends(current_user)) -> Logistics:
         try:
-            return repository.get_logistics(user_id, order_id).model_dump(mode="json")
+            return repository.get_logistics(user_id, order_id)
         except NotFound as error:
             raise HTTPException(status_code=404, detail={"code": "order_not_found"}) from error
 
-    @app.post("/chat")
+    @app.post(
+        "/chat",
+        response_class=StreamingResponse,
+        responses={
+            **AUTH_ERRORS,
+            200: {
+                "description": "Typed agent event stream",
+                "content": {"text/event-stream": {"schema": {"type": "string"}}},
+            },
+        },
+    )
     def chat(body: ChatRequest, user_id: str = Depends(current_user)) -> StreamingResponse:
         state = ConversationState(
             scope=RequestScope(
@@ -113,7 +169,17 @@ def create_app(
 
         return StreamingResponse(safe_stream(), media_type="text/event-stream")
 
-    @app.get("/chat/{thread_id}/events")
+    @app.get(
+        "/chat/{thread_id}/events",
+        response_class=StreamingResponse,
+        responses={
+            **AUTH_ERRORS,
+            200: {
+                "description": "Persisted typed agent event replay",
+                "content": {"text/event-stream": {"schema": {"type": "string"}}},
+            },
+        },
+    )
     def replay_events(thread_id: str, user_id: str = Depends(current_user)) -> StreamingResponse:
         events = runtime.sessions.list_events(user_id, thread_id)
 
@@ -123,33 +189,42 @@ def create_app(
 
         return StreamingResponse(replay(), media_type="text/event-stream")
 
-    @app.get("/threads/{thread_id}")
-    def thread(thread_id: str, user_id: str = Depends(current_user)) -> dict[str, object]:
+    @app.get(
+        "/threads/{thread_id}",
+        response_model=ThreadResponse,
+        responses={
+            **AUTH_ERRORS,
+            404: {"model": ErrorResponse, "description": "thread_not_found"},
+        },
+    )
+    def thread(thread_id: str, user_id: str = Depends(current_user)) -> ThreadResponse:
         active_agent = runtime.sessions.get(user_id, thread_id)
         if active_agent is None:
             raise HTTPException(status_code=404, detail={"code": "thread_not_found"})
         events = runtime.sessions.list_events(user_id, thread_id)
-        return {
-            "thread_id": thread_id,
-            "active_agent": active_agent.value,
-            "event_count": len(events),
-        }
+        return ThreadResponse(
+            thread_id=thread_id, active_agent=active_agent.value, event_count=len(events)
+        )
 
-    @app.get("/approvals")
-    def approvals(user_id: str = Depends(current_user)) -> list[dict[str, object]]:
-        return [approval.model_dump(mode="json") for approval in repository.list_approvals(user_id)]
+    @app.get("/approvals", response_model=list[Approval], responses=AUTH_ERRORS)
+    def approvals(user_id: str = Depends(current_user)) -> list[Approval]:
+        return repository.list_approvals(user_id)
 
-    @app.post("/approvals/{approval_id}/decide")
+    @app.post(
+        "/approvals/{approval_id}/decide",
+        response_model=ApprovalDecisionResponse,
+        responses=APPROVAL_ERRORS,
+    )
     def decide(
         approval_id: str, body: DecisionRequest, user_id: str = Depends(current_user)
-    ) -> dict[str, object]:
+    ) -> ApprovalDecisionResponse:
         try:
             result = runtime.resume_return(user_id, approval_id, body.approve)
             ticket = result.get("ticket")
-            return {
-                "status": "approved" if body.approve else "rejected",
-                "ticket": ticket,
-            }
+            return ApprovalDecisionResponse(
+                status="approved" if body.approve else "rejected",
+                ticket=Ticket.model_validate(ticket) if ticket else None,
+            )
         except NotFound as error:
             raise HTTPException(status_code=404, detail={"code": "approval_not_found"}) from error
         except IdempotencyConflict as error:

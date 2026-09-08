@@ -7,6 +7,8 @@
   全 fake 构造测试证明默认 CI 不触发网络或真实模型。
 - FastAPI 登录、订单与结构化物流查询、SSE chat、审批列表和审批决定接口；演示密码以随机盐 PBKDF2 保存，
   登录校验使用恒定时间比较，未知用户与错误密码返回完全相同的外部响应。
+- OpenAPI 为全部公开 endpoint 声明请求/响应模型、SSE media type 和稳定的认证、not-found、
+  idempotency-conflict 错误契约，并由 schema 解析测试锁定。
 - triage/order/return/policy 四角色及显式工具白名单。
 - 每次工具执行前由代码强制校验当前角色白名单；越权调用返回稳定错误并产生拒绝审计，不能靠提示词绕过。
 - LangGraph 路由图；结构化 handoff/tool/approval/completed 事件。
@@ -51,7 +53,7 @@
 - 生产应用工厂从环境读取 secret、业务库、checkpoint 库和前端产物路径；同源静态前端、健康检查、
   登录和双数据库已通过真实 Uvicorn 进程级 smoke test。
 - 多阶段 Dockerfile、Compose 持久卷与容器健康检查已实现；当前机器没有 Docker CLI，镜像尚未实际构建。
-- 后端 53 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
+- 后端 54 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
 - CI 已覆盖后端静态检查/测试/RAG 报告、前端单测/typecheck/build/密钥扫描/E2E；README 必备章节由测试门禁。
 
 具体数字见 `artifacts/verification.json`。

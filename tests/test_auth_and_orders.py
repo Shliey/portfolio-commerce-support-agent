@@ -58,7 +58,15 @@ def test_missing_and_foreign_orders_share_external_error(
 
 
 def test_openapi_lists_order_and_logistics_endpoints(client: TestClient) -> None:
-    paths = client.get("/openapi.json").json()["paths"]
+    schema = client.get("/openapi.json").json()
+    paths = schema["paths"]
     assert "/orders" in paths
     assert "/orders/{order_id}" in paths
     assert "/orders/{order_id}/logistics" in paths
+    assert paths["/orders/{order_id}"]["get"]["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ]["$ref"].endswith("/Order")
+    assert paths["/orders/{order_id}"]["get"]["responses"]["404"]["description"] == (
+        "order_not_found"
+    )
+    assert paths["/login"]["post"]["responses"]["401"]["description"] == ("invalid_credentials")

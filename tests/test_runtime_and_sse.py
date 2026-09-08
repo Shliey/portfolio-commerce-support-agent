@@ -210,6 +210,21 @@ def test_tool_limit_emits_limit_event(repository: SQLiteRepository) -> None:
     assert '"code": "tool_limit_exceeded"' in frames
 
 
+def test_openapi_documents_all_agent_endpoints_and_sse(client: TestClient) -> None:
+    paths = client.get("/openapi.json").json()["paths"]
+    for path in (
+        "/chat",
+        "/chat/{thread_id}/events",
+        "/approvals",
+        "/approvals/{approval_id}/decide",
+        "/threads/{thread_id}",
+    ):
+        assert path in paths
+    assert "text/event-stream" in paths["/chat"]["post"]["responses"]["200"]["content"]
+    decide_responses = paths["/approvals/{approval_id}/decide"]["post"]["responses"]
+    assert decide_responses["409"]["description"] == "idempotency_conflict"
+
+
 def test_active_agent_persists_across_runtime_restart(repository: SQLiteRepository) -> None:
     checkpoint_path = repository.path.with_name("checkpoints.db")
     scope1 = RequestScope(user_id="user-1", thread_id="thread-1", request_id="request-1")
