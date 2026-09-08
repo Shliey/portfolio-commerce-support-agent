@@ -88,11 +88,28 @@ class SQLiteRepository:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._write_lock = threading.Lock()
+        self._closed = False
         with self.connection() as connection:
             connection.executescript(SCHEMA)
 
+    def __enter__(self) -> SQLiteRepository:
+        self._ensure_open()
+        return self
+
+    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
+        self.close()
+
+    def close(self) -> None:
+        """Close the repository lifecycle; operation-scoped handles are already released."""
+        self._closed = True
+
+    def _ensure_open(self) -> None:
+        if self._closed:
+            raise RuntimeError("repository_closed")
+
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:
+        self._ensure_open()
         connection = sqlite3.connect(self.path, timeout=10)
         connection.row_factory = sqlite3.Row
         try:
@@ -107,6 +124,7 @@ class SQLiteRepository:
     @contextmanager
     def write_connection(self) -> Iterator[sqlite3.Connection]:
         """Serialize writes across processes with SQLite, not only this Python instance."""
+        self._ensure_open()
         connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA busy_timeout = 30000")

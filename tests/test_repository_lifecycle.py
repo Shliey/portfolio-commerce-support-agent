@@ -31,3 +31,16 @@ def test_repository_releases_file_after_repeated_operations(tmp_path: Path) -> N
     database.rename(renamed)
     renamed.unlink()
     assert not renamed.exists()
+
+
+def test_repository_context_manager_closes_lifecycle_and_file(tmp_path: Path) -> None:
+    database = tmp_path / "context managed lifecycle.db"
+    with SQLiteRepository(database) as repository:
+        repository.seed()
+        assert repository.list_orders("user-1")
+    with pytest.raises(RuntimeError, match="repository_closed"):
+        repository.list_orders("user-1")
+    renamed = tmp_path / "closed-context.db"
+    database.rename(renamed)
+    renamed.unlink()
+    assert not renamed.exists()
