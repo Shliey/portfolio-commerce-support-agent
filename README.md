@@ -120,6 +120,16 @@ uv run uvicorn commerce_support.api:create_app_from_env --factory --host 0.0.0.0
 Playwright 会在真实 Chromium 中验证订单历史、流式退货请求、审批与唯一成功结果；失败时在
 `web/test-results/` 保存截图和 trace。仓库不把临时测试截图当作生产部署证明。
 
+![本地 Playwright 售后闭环验收截图](docs/demo-ui.png)
+
+需要刷新截图时，在 `web/` 下运行：
+
+```powershell
+$env:CAPTURE_DEMO = "1"
+npm run e2e
+Remove-Item Env:CAPTURE_DEMO
+```
+
 详细材料：
 
 - [上游源码深度剖析](docs/upstream-analysis.zh-CN.md)

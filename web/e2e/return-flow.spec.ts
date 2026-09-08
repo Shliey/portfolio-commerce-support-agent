@@ -12,4 +12,7 @@ test("login, stream a return request, approve, and create a ticket", async ({ pa
   await page.getByRole("button", { name: "批准" }).click();
   await expect(page.getByText("已批准，工单已创建。", { exact: false })).toBeVisible();
   await expect(page.getByText("已批准，工单已创建。", { exact: false })).toHaveCount(1);
+  if (process.env.CAPTURE_DEMO === "1") {
+    await page.screenshot({ path: "../docs/demo-ui.png", fullPage: true });
+  }
 });

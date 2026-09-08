@@ -42,6 +42,7 @@
   `limit_exceeded` 终止事件，且步数耗尽前不会进入后续工具。
 - Playwright 启动隔离的 FastAPI/Vite 进程，验收登录、退货请求、审批和成功提示后自动回收进程。
 - Playwright E2E 同时断言订单历史、退货审批和唯一成功结果；Windows teardown 后 8010/5174 无监听残留。
+- README 内嵌由同一 Playwright 通过路径显式生成并经人工视觉检查的完整页面截图；刷新命令可复现。
 - 前端生产构建自动扫描 API key、provider token 与硬编码 Bearer 凭据模式，发现即失败。
 - RAG 提供真实 LangChain embedding 工厂；生产配置缺失模型名时拒绝启动，不静默降级到 Hash。
 - Embedding 与 VectorStore 分别通过协议替换；内存向量库是默认实现，fake store 合同测试验证替换后
