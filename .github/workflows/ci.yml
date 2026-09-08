@@ -14,10 +14,13 @@ jobs:
       - run: uv run mypy
       - run: uv run pytest
       - run: uv run python -m evals.run --suite v1 --output artifacts/rag-eval-v1.json
+      - run: uv run python -m evals.load_smoke --output artifacts/load-smoke.json
       - uses: actions/upload-artifact@v4
         with:
           name: rag-eval-v1
-          path: artifacts/rag-eval-v1.json
+          path: |
+            artifacts/rag-eval-v1.json
+            artifacts/load-smoke.json
   web:
     runs-on: ubuntu-latest
     defaults:

@@ -55,6 +55,7 @@ uv run ruff format --check .
 uv run mypy
 uv run pytest
 uv run python -m evals.run --suite v1
+uv run python -m evals.load_smoke
 cd web
 npm test
 npm run typecheck
