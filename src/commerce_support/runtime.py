@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from .eligibility import evaluate_return
 from .models import ConversationState, EventType, Role, StreamEvent
-from .observability import ToolExecutor
+from .observability import ToolExecutor, ToolLimitExceeded
 from .rag import OfflinePolicyRetriever, SemanticPolicyRetriever
 from .repository import IdempotencyConflict, NotFound, SQLiteRepository
 from .return_workflow import ReturnWorkflow
@@ -27,6 +27,10 @@ ROLE_TOOLS: dict[Role, frozenset[str]] = {
 
 
 class ToolNotAllowed(Exception):
+    pass
+
+
+class StepLimitExceeded(Exception):
     pass
 
 
@@ -122,6 +126,8 @@ class CommerceRuntime:
         audit_sink: Any = None,
         policy_retriever: SemanticPolicyRetriever | None = None,
         intent_router: IntentRouter | None = None,
+        max_steps: int = 20,
+        max_tool_calls: int = 4,
     ) -> None:
         self.repository = repository
         self.policy = policy_retriever or OfflinePolicyRetriever()
@@ -132,6 +138,8 @@ class CommerceRuntime:
         self.sessions = SessionStateStore(resolved_checkpoint_path)
         self.returns = ReturnWorkflow(repository, resolved_checkpoint_path)
         self.audit_sink = audit_sink
+        self.max_steps = max_steps
+        self.max_tool_calls = max_tool_calls
 
     def stream(self, state: ConversationState) -> Iterable[StreamEvent]:
         run_id = f"run-{uuid.uuid4().hex}"
@@ -143,10 +151,13 @@ class CommerceRuntime:
                 "thread_id": state.scope.thread_id,
             },
             sink=self.audit_sink,
+            max_calls=self.max_tool_calls,
         )
 
         def event(kind: EventType, data: dict[str, Any]) -> StreamEvent:
             nonlocal sequence
+            if sequence >= self.max_steps:
+                raise StepLimitExceeded("step_limit_exceeded")
             sequence += 1
             return StreamEvent(
                 type=kind,
@@ -253,14 +264,20 @@ class CommerceRuntime:
                 self.sessions.append_event(item)
                 yield self._encode_sse(item)
         except Exception as error:
-            if isinstance(error, NotFound):
+            if isinstance(error, (StepLimitExceeded, ToolLimitExceeded)):
+                code = str(error)
+                event_type: EventType = "limit_exceeded"
+            elif isinstance(error, NotFound):
                 code = "order_not_found"
+                event_type = "error"
             elif isinstance(error, IdempotencyConflict):
                 code = "idempotency_conflict"
+                event_type = "error"
             else:
                 code = "internal_error"
+                event_type = "error"
             failure = StreamEvent(
-                type="error",
+                type=event_type,
                 run_id=last_event.run_id if last_event else f"run-{uuid.uuid4().hex}",
                 thread_id=state.scope.thread_id,
                 user_id=state.scope.user_id,

@@ -1,6 +1,6 @@
 export type AgentEvent = {
   type: "message_update" | "tool_start" | "tool_end" | "handoff" |
-    "approval_required" | "completed" | "error";
+    "approval_required" | "completed" | "error" | "limit_exceeded";
   run_id: string;
   thread_id: string;
   user_id: string;

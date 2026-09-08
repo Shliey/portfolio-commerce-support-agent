@@ -32,6 +32,8 @@
 - 运行异常统一转换为带完整 run/user/thread/seq 的稳定错误事件，不暴露 SQL/堆栈且同样支持 replay。
 - 工具执行边界记录 run/user/thread、调用名、耗时、尝试次数和状态；敏感字段递归脱敏，
   瞬时故障使用有界指数退避，每轮工具数超限即停止。
+- Runtime 同时限制每轮工具调用数和每 run 事件步数；超限产生完整关联并持久化的
+  `limit_exceeded` 终止事件，且步数耗尽前不会进入后续工具。
 - Playwright 启动隔离的 FastAPI/Vite 进程，验收登录、退货请求、审批和成功提示后自动回收进程。
 - Playwright E2E 同时断言订单历史、退货审批和唯一成功结果；Windows teardown 后 8010/5174 无监听残留。
 - 前端生产构建自动扫描 API key、provider token 与硬编码 Bearer 凭据模式，发现即失败。
@@ -49,7 +51,7 @@
 - 生产应用工厂从环境读取 secret、业务库、checkpoint 库和前端产物路径；同源静态前端、健康检查、
   登录和双数据库已通过真实 Uvicorn 进程级 smoke test。
 - 多阶段 Dockerfile、Compose 持久卷与容器健康检查已实现；当前机器没有 Docker CLI，镜像尚未实际构建。
-- 后端 51 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
+- 后端 53 个测试、前端 1 个单元测试和 1 个浏览器 E2E、lint、format、strict mypy、typecheck、build 和 demo。
 - CI 已覆盖后端静态检查/测试/RAG 报告、前端单测/typecheck/build/密钥扫描/E2E；README 必备章节由测试门禁。
 
 具体数字见 `artifacts/verification.json`。

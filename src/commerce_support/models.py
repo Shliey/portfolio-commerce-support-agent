@@ -113,6 +113,7 @@ type EventType = Literal[
     "approval_required",
     "completed",
     "error",
+    "limit_exceeded",
 ]
 
 

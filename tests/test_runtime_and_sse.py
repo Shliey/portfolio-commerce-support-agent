@@ -182,6 +182,34 @@ def test_sse_error_is_correlated_sanitized_and_replayable(
     assert '"type":"error"' in replay.text
 
 
+def test_step_limit_stops_before_tool_execution_and_emits_terminal_event(
+    repository: SQLiteRepository,
+) -> None:
+    entries: list[dict[str, object]] = []
+    runtime = CommerceRuntime(repository, audit_sink=entries.append, max_steps=1)
+    state = ConversationState(
+        scope=RequestScope(user_id="user-1", thread_id="step-limit", request_id="limit-1"),
+        message="show orders",
+    )
+    frames = "".join(runtime.sse(state))
+    assert "event: limit_exceeded" in frames
+    assert '"code": "step_limit_exceeded"' in frames
+    assert entries == []
+    replay = runtime.sessions.list_events("user-1", "step-limit")
+    assert [event.type for event in replay] == ["handoff", "limit_exceeded"]
+
+
+def test_tool_limit_emits_limit_event(repository: SQLiteRepository) -> None:
+    runtime = CommerceRuntime(repository, max_tool_calls=0)
+    state = ConversationState(
+        scope=RequestScope(user_id="user-1", thread_id="tool-limit", request_id="limit-2"),
+        message="show orders",
+    )
+    frames = "".join(runtime.sse(state))
+    assert "event: limit_exceeded" in frames
+    assert '"code": "tool_limit_exceeded"' in frames
+
+
 def test_active_agent_persists_across_runtime_restart(repository: SQLiteRepository) -> None:
     checkpoint_path = repository.path.with_name("checkpoints.db")
     scope1 = RequestScope(user_id="user-1", thread_id="thread-1", request_id="request-1")
