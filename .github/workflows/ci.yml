@@ -33,6 +33,7 @@ jobs:
       - uses: astral-sh/setup-uv@v10.0.1
         with:
           python-version: "3.12"
+          enable-cache: false
       - run: uv sync --frozen
         working-directory: .
       - uses: actions/setup-node@v7
