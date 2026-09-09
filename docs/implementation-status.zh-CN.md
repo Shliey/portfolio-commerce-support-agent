@@ -83,12 +83,13 @@
   登录和双数据库已通过真实 Uvicorn 进程级 smoke test。
 - 多阶段 Dockerfile、Compose 持久卷与容器健康检查已实现；Docker Desktop 4.90.0 / Engine 29.7.2 /
   Compose 5.5.1 已完成真实镜像构建，容器内部和主机 `127.0.0.1:8080/health` 均返回 200。
-- 后端 76 个测试（零 warning）、前端 7 个单元/组件测试和 1 个浏览器 E2E、lint、format、strict mypy、
+- 后端 77 个测试（零 warning）、前端 7 个单元/组件测试和 1 个浏览器 E2E、lint、format、strict mypy、
   typecheck、build 和 demo。仅精确过滤 Starlette `TestClient` 内部已知的 AnyIO alias 弃用消息，其他 warning
   仍会正常报告。
 - CI 显式固定 `RUN_REAL_MODEL_EVAL=0`，覆盖后端静态检查/测试/RAG 报告、前端单测、任务原文要求的
   `npm run typecheck -- --strict`、build/密钥扫描/E2E；web job 独立配置 Python/uv 后端 runtime，避免依赖
   本机共享 `.venv`。README 与 CI 必备契约均由测试门禁；GitHub Actions run `34308626396` 已远端通过。
+  Action 已升级到各官方 Node 24 runtime 主版本，避免 Node 20 弃用注解。
 
 具体数字见 `artifacts/verification.json`。
 

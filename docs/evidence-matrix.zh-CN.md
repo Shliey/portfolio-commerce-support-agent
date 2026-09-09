@@ -5,7 +5,7 @@
 | 双角色 commerce 架构 | 已实现 | 不复制 | 上游 README 与源码 | 只能写源码研究 |
 | 三种 Claude runtime | 已实现 | 仅实现 LangGraph/FastAPI | 上游三个 runtime 目录 | 不写成个人实现 |
 | Fencing/provenance | 已实现 | 采用所有权和工具白名单，后续可扩展 fence | 上游 fencing/gates 测试 | 可写“借鉴设计” |
-| 四角色路由 | 无此实现 | 已实现 LangGraph triage、持久角色与代码强制 allowlist | runtime 与当前 76 个后端测试 | 可写个人实现 |
+| 四角色路由 | 无此实现 | 已实现 LangGraph triage、持久角色与代码强制 allowlist | runtime 与当前 77 个后端测试 | 可写个人实现 |
 | 所有权保护 | 部署方责任 | 已实现仓库查询约束 | API/仓库测试 | 可写个人实现 |
 | 人工审批 | merchant 上游已实现 | return workflow 独立实现 | SSE + approval API 测试 | 可写个人实现 |
 | 业务幂等 | 非上游主线 | `UNIQUE(request_id)` + 重试返回原 ticket | repository 测试 | 测试通过后量化 |

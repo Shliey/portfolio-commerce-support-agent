@@ -6,8 +6,8 @@ jobs:
     env:
       RUN_REAL_MODEL_EVAL: "0"
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v9
         with:
           python-version: "3.12"
       - run: uv sync --frozen
@@ -17,7 +17,7 @@ jobs:
       - run: uv run pytest
       - run: uv run python -m evals.run --suite v1 --output artifacts/rag-eval-v1.json
       - run: uv run python -m evals.load_smoke --output artifacts/load-smoke.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: rag-eval-v1
           path: |
@@ -29,13 +29,13 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v9
         with:
           python-version: "3.12"
       - run: uv sync --frozen
         working-directory: .
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
