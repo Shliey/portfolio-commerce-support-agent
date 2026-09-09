@@ -59,6 +59,15 @@
     "host_health_status": 200,
     "claim_boundary": "Local Docker Desktop Linux-container build/run passed; no remote container platform or cloud deployment was verified"
   },
+  "github_actions": {
+    "repository": "Shliey/portfolio-commerce-support-agent",
+    "visibility": "private",
+    "workflow": "ci",
+    "run_id": 34308626396,
+    "head_sha": "673ea866ddab8f2d3ebb91d6a7b23b666476fb2f",
+    "conclusion": "success",
+    "url": "https://github.com/Shliey/portfolio-commerce-support-agent/actions/runs/34308626396"
+  },
   "rag_eval": {
     "suite": "v1",
     "sample_size": 30,
@@ -88,7 +97,6 @@
     "failures": 0
   },
   "not_yet_verified": [
-    "live LLM routing evaluation and its latency/token metrics",
-    "remote GitHub Actions run (repository has no remote and local gh credential is invalid)"
+    "live LLM routing evaluation and its latency/token metrics"
   ]
 }

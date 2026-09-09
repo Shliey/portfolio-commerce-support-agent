@@ -53,7 +53,7 @@ Windows 本机复验；`外部待验`表示代码已具备，但当前环境无�
 | 9.2 UI 状态 | 本地通过 | 登录、订单、流式事件、角色/工具、引用、批准/拒绝与错误态组件测试 |
 | 9.3 浏览器无密钥 | 本地通过 | 每次 production build 后扫描 dist |
 | 9.4 浏览器 E2E | 本地通过 | Playwright：登录→订单→退货→批准→唯一 ticket |
-| 10.1 CI | 外部待验 | workflow 已覆盖全部命令并显式 `RUN_REAL_MODEL_EVAL=0`；仓库无 remote，GitHub 登录已失效，不能声称远端 green run |
+| 10.1 CI | 远端通过 | 私有仓库 `Shliey/portfolio-commerce-support-agent` 的 run `34308626396` 在提交 `673ea86` 上成功 |
 | 10.2 README/架构/截图 | 本地通过 | README contract test、架构说明、已目视验收的 Playwright 截图 |
 | 10.3 one-shot demo | 本地通过 | fresh DB 完整闭环退出 0 |
 | 10.4 结果总结 | 本地通过 | 本文、evidence matrix、implementation status、resume/interview kit 与 verification JSON |
@@ -62,6 +62,6 @@ Windows 本机复验；`外部待验`表示代码已具备，但当前环境无�
 
 - 没有 LLM API key：真实 LLM 路由成功率、延迟、token 成本不存在；不可引用 fake runner 数字冒充。
 - Docker Desktop 4.90.0 已安装，Engine 29.7.2 与 Compose 5.5.1 完成本机 build/run/health；无云部署证据。
-- 独立仓库没有 Git remote，且本机 GitHub CLI token 失效：无法产生 OpenSpec 10.1 要求的远端绿色 CI run。
+- GitHub CLI 已通过系统 keyring 登录为 `Shliey`，`origin` 已配置并推送；远端 CI 已产生绿色记录。
 
-因此，本地实现 issue 已清零；真实模型和远端 CI 仍需相应外部凭据。
+因此，除用户明确排除的 API Key/真实模型评测外，当前实现、Docker 和远端 CI issue 已清零。
