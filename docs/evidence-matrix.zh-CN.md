@@ -13,7 +13,7 @@
 | Policy RAG | 上游以 backend policy read 为主 | 独立语料、Hash 测试替身与 FastEmbed 语义检索 | 两份 30 样本报告 | 可写本地语义检索，不写真实 LLM |
 | 严格 TS 前端 | 上游完整八应用 | 订单历史、增量 SSE、引用与审批时间线 | unit/typecheck/build/Playwright | 可写个人实现 |
 | 真实模型评测 | 可运行 smoke，需 key | 严格门禁 runner 已实现，当前无 key | runner 合同测试 | 不得宣称真实模型指标 |
-| 生产启动 | 文档级多平台说明 | 环境工厂、Dockerfile、Compose | Uvicorn smoke；无 Docker CLI | 可写容器化，不得宣称镜像/云部署通过 |
+| 生产启动 | 文档级多平台说明 | 环境工厂、Dockerfile、Compose | Uvicorn smoke；Docker 本机 build/run/health 通过 | 可写本机容器化，不得宣称云部署 |
 
 ## 使用规则
 

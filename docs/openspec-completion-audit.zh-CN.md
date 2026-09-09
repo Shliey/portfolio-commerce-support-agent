@@ -61,7 +61,7 @@ Windows 本机复验；`外部待验`表示代码已具备，但当前环境无�
 ## 当前外部边界
 
 - 没有 LLM API key：真实 LLM 路由成功率、延迟、token 成本不存在；不可引用 fake runner 数字冒充。
-- 没有 Docker CLI：Dockerfile/Compose 仅完成静态实现，未产生镜像构建或容器运行证据。
+- Docker Desktop 4.90.0 已安装，Engine 29.7.2 与 Compose 5.5.1 完成本机 build/run/health；无云部署证据。
 - 独立仓库没有 Git remote，且本机 GitHub CLI token 失效：无法产生 OpenSpec 10.1 要求的远端绿色 CI run。
 
-因此，本地实现 issue 已清零；上述三项只能在用户提供相应外部环境或授权后继续。
+因此，本地实现 issue 已清零；真实模型和远端 CI 仍需相应外部凭据。

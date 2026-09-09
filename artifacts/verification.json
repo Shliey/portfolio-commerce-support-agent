@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-08T19:04:00+08:00",
+  "generated_at": "2026-09-09T11:40:00+08:00",
   "environment": {
     "os": "Windows",
     "python": "3.13.9",
@@ -49,8 +49,15 @@
     "semantic_policy_runtime_smoke": "passed",
     "separate_business_and_checkpoint_paths": "passed",
     "dockerfile_present": true,
-    "docker_image_built": false,
-    "claim_boundary": "Docker CLI unavailable; local Uvicorn production-factory smoke is not a container deployment"
+    "docker_desktop_version": "4.90.0",
+    "docker_engine_version": "29.7.2",
+    "docker_compose_version": "5.5.1",
+    "docker_image_built": true,
+    "container_run": "passed",
+    "container_health": "healthy",
+    "host_health_url": "http://127.0.0.1:8080/health",
+    "host_health_status": 200,
+    "claim_boundary": "Local Docker Desktop Linux-container build/run passed; no remote container platform or cloud deployment was verified"
   },
   "rag_eval": {
     "suite": "v1",
@@ -82,7 +89,6 @@
   },
   "not_yet_verified": [
     "live LLM routing evaluation and its latency/token metrics",
-    "Docker image build/run and remote production environment",
     "remote GitHub Actions run (repository has no remote and local gh credential is invalid)"
   ]
 }

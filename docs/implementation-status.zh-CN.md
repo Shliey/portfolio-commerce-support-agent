@@ -81,7 +81,8 @@
   集成测试证明开关打开时会走完整 runner 与报告写入路径，但不冒充真实模型结果。
 - 生产应用工厂从环境读取 secret、业务库、checkpoint 库和前端产物路径；同源静态前端、健康检查、
   登录和双数据库已通过真实 Uvicorn 进程级 smoke test。
-- 多阶段 Dockerfile、Compose 持久卷与容器健康检查已实现；当前机器没有 Docker CLI，镜像尚未实际构建。
+- 多阶段 Dockerfile、Compose 持久卷与容器健康检查已实现；Docker Desktop 4.90.0 / Engine 29.7.2 /
+  Compose 5.5.1 已完成真实镜像构建，容器内部和主机 `127.0.0.1:8080/health` 均返回 200。
 - 后端 75 个测试（零 warning）、前端 7 个单元/组件测试和 1 个浏览器 E2E、lint、format、strict mypy、
   typecheck、build 和 demo。仅精确过滤 Starlette `TestClient` 内部已知的 AnyIO alias 弃用消息，其他 warning
   仍会正常报告。
@@ -93,4 +94,4 @@
 ## 下一阶段，不得提前写入简历
 
 - 当前环境没有 LLM API key，因此尚未运行真实 LLM，也没有可声明的真实延迟/token 指标。
-- Docker 镜像尚未在装有 Docker 的环境执行构建/运行验收；本机生产进程验收不能替代该结果。
+- Docker 只完成本机 Linux-container 构建与运行验收，尚无远程容器平台或云端部署证据。

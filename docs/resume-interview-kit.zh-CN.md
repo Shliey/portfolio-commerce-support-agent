@@ -28,8 +28,8 @@
 - 建立 30 条版本化 Policy RAG 集合；离线 Hash stub 与本地 BGE semantic embedding 的 Hit@1、
   Hit@3、MRR、引用合法率和拒答召回均为 1.0，并显式标记未调用生成式 LLM。
 
-以上数字必须与 `artifacts/verification.json` 同步；真实 LLM 延迟/token、Docker 镜像运行和云部署
-尚无证据，不写入简历。
+以上数字必须与 `artifacts/verification.json` 同步；Docker 本机镜像运行已通过，但真实 LLM
+延迟/token 和云部署尚无证据，不写入简历。
 
 ## 60 秒介绍
 

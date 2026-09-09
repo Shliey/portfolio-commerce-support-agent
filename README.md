@@ -82,8 +82,9 @@ $env:LLM_EMBEDDING_MODEL = "fastembed:BAAI/bge-small-en-v1.5"
 uv run uvicorn commerce_support.api:create_app_from_env --factory --host 0.0.0.0 --port 8000
 ```
 
-安装 Docker 的环境可执行 `docker compose up --build`。SQLite 数据保存在命名卷
-`commerce-data`；`/health` 同时作为容器健康检查。不得把本机进程验收写成云端部署。
+安装 Docker 的环境可执行 `docker compose up --build`，然后访问
+`http://127.0.0.1:8080/health`。主机只监听 loopback 的 8080，容器内部仍使用 8000；SQLite 数据保存在
+命名卷 `commerce-data`，`/health` 同时作为容器健康检查。不得把本机容器验收写成云端部署。
 
 ## API
 
@@ -120,7 +121,8 @@ uv run uvicorn commerce_support.api:create_app_from_env --factory --host 0.0.0.0
 - 当前 token 是带 HMAC 的随机 opaque token，服务端会话映射仅在单进程内存中；不替代 OAuth、
   多实例共享会话、会话吊销和生产密钥管理。
 - 不连接真实支付、退款或物流系统。
-- 本机未安装 Docker，因此 Dockerfile/Compose 已实现但镜像未实际构建；也没有云端上线证据。
+- Docker Desktop 4.90.0 / Engine 29.7.2 / Compose 5.5.1 已完成本机镜像构建、容器健康检查和
+  `127.0.0.1:8080` 主机访问验收；这仍不是云端上线证据。
 - 当前环境无 LLM API key，真实路由成功率、延迟与 token 指标不存在。
 
 ## 演示界面
