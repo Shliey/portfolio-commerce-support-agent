@@ -6,8 +6,8 @@ jobs:
     env:
       RUN_REAL_MODEL_EVAL: "0"
     steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v9
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
         with:
           python-version: "3.12"
       - run: uv sync --frozen
@@ -29,8 +29,8 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v9
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
         with:
           python-version: "3.12"
       - run: uv sync --frozen
