@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-09T11:40:00+08:00",
+  "generated_at": "2026-09-09T12:04:42+08:00",
   "environment": {
     "os": "Windows",
     "python": "3.13.9",
@@ -63,10 +63,10 @@
     "repository": "Shliey/portfolio-commerce-support-agent",
     "visibility": "private",
     "workflow": "ci",
-    "run_id": 34308626396,
-    "head_sha": "673ea866ddab8f2d3ebb91d6a7b23b666476fb2f",
+    "run_id": 34309361649,
+    "head_sha": "c8cc2fdeedb0d757bc9ae31a822f1191667d9f9d",
     "conclusion": "success",
-    "url": "https://github.com/Shliey/portfolio-commerce-support-agent/actions/runs/34308626396"
+    "url": "https://github.com/Shliey/portfolio-commerce-support-agent/actions/runs/34309361649"
   },
   "rag_eval": {
     "suite": "v1",

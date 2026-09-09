@@ -88,7 +88,7 @@
   仍会正常报告。
 - CI 显式固定 `RUN_REAL_MODEL_EVAL=0`，覆盖后端静态检查/测试/RAG 报告、前端单测、任务原文要求的
   `npm run typecheck -- --strict`、build/密钥扫描/E2E；web job 独立配置 Python/uv 后端 runtime，避免依赖
-  本机共享 `.venv`。README 与 CI 必备契约均由测试门禁；GitHub Actions run `34308626396` 已远端通过。
+  本机共享 `.venv`。README 与 CI 必备契约均由测试门禁；GitHub Actions run `34309361649` 已远端通过。
   Action 已升级到各官方 Node 24 runtime 主版本，避免 Node 20 弃用注解。
 
 具体数字见 `artifacts/verification.json`。
